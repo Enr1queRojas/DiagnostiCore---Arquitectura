@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \":*)",
+      "Read(//c/Users/Usuario/.claude/projects/c--Users-Usuario-OneDrive-Documents-Python-Scripts-proyectos-DiagnostiCore---Arquitectura/memory/**)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Usuario\\.claude\\projects\\c--Users-Usuario-OneDrive-Documents-Python-Scripts-proyectos-DiagnostiCore---Arquitectura\\memory"
+    ]
+  }
+}

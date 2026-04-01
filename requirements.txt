@@ -1,0 +1,24 @@
+# DiagnostiCore — Python dependencies
+# Install with: pip install -r requirements.txt
+
+# Anthropic SDK — async LLM client
+anthropic>=0.40.0
+
+# JSON Schema validation for agent outputs
+jsonschema>=4.23.0
+
+# MCP SDK — Model Context Protocol server/client (Fase 2)
+mcp>=1.0.0
+
+# JWT tokens — run-scoped access control for multi-consultant deployments (Fase 3)
+PyJWT>=2.8.0
+
+# OpenTelemetry — distributed tracing for the diagnostic pipeline (Fase 4)
+opentelemetry-api>=1.24.0
+opentelemetry-sdk>=1.24.0
+opentelemetry-exporter-otlp-proto-http>=1.24.0   # optional; for Jaeger/Tempo/Honeycomb
+
+# FastAPI REST + SSE layer (Fase 4)
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+sse-starlette>=2.0.0

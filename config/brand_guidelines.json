@@ -1,0 +1,103 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "descripcion": "Guía de marca InnoVerse para outputs del sistema DiagnostiCore. Usada por el agente A8 para generar el One-Pager con identidad visual correcta."
+  },
+
+  "colores": {
+    "primario_oscuro": "#1C1C1E",
+    "magenta": "#A3195B",
+    "naranja_alerta": "#E94E1B",
+    "morado_fondo_suave": "#F9F5FB",
+    "gris_footer": "#B0B0B0",
+    "blanco": "#FFFFFF"
+  },
+
+  "tipografia": {
+    "cuerpo": "Century Gothic",
+    "monospace": "Courier New",
+    "alternativa_cuerpo": "Arial"
+  },
+
+  "estructura_one_pager": {
+    "secciones": [
+      {
+        "numero": "01",
+        "titulo": "SITUACIÓN ACTUAL",
+        "descripcion": "Párrafo específico de la empresa. Completamente único. No puede copiarse a otro cliente.",
+        "longitud_max_palabras": 80
+      },
+      {
+        "numero": "02",
+        "titulo": "LO QUE ENCONTRAMOS",
+        "descripcion": "Tres observaciones en formato: → [Situación observable] → [consecuencia cuantificada o cualificada]",
+        "cantidad_hallazgos": 3
+      },
+      {
+        "numero": "03",
+        "titulo": "LAS TRES CAUSAS RAÍZ",
+        "descripcion": "Máximo 3. Nombre máx. 5 palabras + explicación en lenguaje de negocio.",
+        "cantidad_max_causas": 3
+      },
+      {
+        "numero": "04",
+        "titulo": "EL COSTO DE NO ACTUAR",
+        "descripcion": "IDD + perfil de madurez por dimensión + costo mensual y anual con desglose.",
+        "incluye_idd": true,
+        "incluye_barras_madurez": true
+      },
+      {
+        "numero": "05",
+        "titulo": "EL CAMINO DE TRANSFORMACIÓN",
+        "descripcion": "3 fases DECA+: Dolor, Evidencia, Autonomía. Con horizonte total en meses.",
+        "cantidad_fases": 3
+      }
+    ],
+    "footer": "InnoVerse Solutions | Diagnóstico 360 | Confidencial",
+    "tagline": "The door to success. — InnoVerse Solutions"
+  },
+
+  "prohibiciones_lenguaje": {
+    "frameworks_prohibidos": [
+      "ADKAR", "DAMA-DMBOK", "BPM", "BPMM", "MIT CISR", "McKinsey", "Gartner",
+      "Heifetz", "Kotter", "SMACIT", "Hyperautomation", "Digital Quotient",
+      "Hype Cycle", "Bimodal IT", "Lean Six Sigma", "Value Stream Mapping"
+    ],
+    "abreviaturas_prohibidas_sin_traduccion": [
+      "ERP", "CRM", "RPA", "BI", "ML", "AI", "KPI", "SLA", "API", "CDP",
+      "MES", "WMS", "TMS", "IIoT", "IoT", "DevOps", "CI/CD"
+    ],
+    "frases_cliche_prohibidas": [
+      "empresa líder", "innovador", "ecosistema", "sinergias", "robusto",
+      "best practice", "best-in-class", "estado del arte", "world class",
+      "solución integral", "transformación holística"
+    ],
+    "nivel_madurez_prohibido": "Nunca decir 'nivel X según framework Y'. Traducir siempre a impacto de negocio."
+  },
+
+  "formato_barras_madurez": {
+    "llena": "■",
+    "vacia": "□",
+    "escala": 5,
+    "dimensiones_orden": [
+      "Estrategia",
+      "Cultura",
+      "Liderazgo",
+      "Procesos",
+      "Datos",
+      "Tecnología"
+    ]
+  },
+
+  "validaciones_antes_entrega": [
+    "Situación actual es completamente específica a este cliente",
+    "Las tres causas raíz tienen nombre ≤5 palabras",
+    "El costo de no actuar tiene desglose específico (no genérico)",
+    "No aparece ningún nombre de framework en el texto",
+    "Los estimados de ROI aplicaron factores de conservadurismo (70%/50%)",
+    "El perfil de madurez tiene barras visuales por dimensión",
+    "El horizonte de transformación tiene número de meses específico",
+    "Todo cabe en una sola página",
+    "Fue aprobado por consultor senior antes de entregar al cliente"
+  ]
+}

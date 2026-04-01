@@ -1,0 +1,55 @@
+{
+  "_instrucciones": "Copia este archivo a runs/CLIENTE_YYYYMMDD.json y llena los campos antes de iniciar el diagnóstico. NO modifiques este template directamente.",
+  "run_id": "CLIENTE_YYYYMMDD",
+  "estado": "iniciado",
+
+  "cliente": {
+    "nombre": "",
+    "sector": "",
+    "tamaño": "",
+    "empleados": 0,
+    "anos_operacion": 0,
+    "pais": "México",
+    "consultor_responsable": "",
+    "fecha_inicio": ""
+  },
+
+  "timestamps": {
+    "iniciado": "",
+    "A1_completado": null,
+    "A2_completado": null,
+    "A3_completado": null,
+    "A4_completado": null,
+    "A5_completado": null,
+    "A6_completado": null,
+    "A7_completado": null,
+    "A8_completado": null
+  },
+
+  "evidencia": {
+    "transcripciones": [],
+    "cuestionarios": {},
+    "auditoria_tecnica": {},
+    "mapas_proceso": [],
+    "series_financieras": {}
+  },
+
+  "resultados_dimensionales": {
+    "A1_estrategia": null,
+    "A2_liderazgo": null,
+    "A3_cultura": null,
+    "A4_procesos": null,
+    "A5_datos": null,
+    "A6_tecnologia": null
+  },
+
+  "sintesis": null,
+  "one_pager": null,
+
+  "metadatos": {
+    "version_sistema": "1.0",
+    "agentes_completados": [],
+    "errores": [],
+    "notas_consultor": ""
+  }
+}

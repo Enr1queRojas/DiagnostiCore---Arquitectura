@@ -1,0 +1,138 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "descripcion": "Catálogo de 7 anti-patrones documentados por InnoVerse en el proceso de Diagnóstico 360. Prevalencia >70% de diagnósticos.",
+    "fuente": "InnoVerse Book de Diagnóstico 360 v1.0 (2025)"
+  },
+
+  "antipatrones": [
+    {
+      "id": "excel_sagrado",
+      "nombre": "El Excel Sagrado",
+      "descripcion": "Información crítica del negocio reside en spreadsheets personales en laptops individuales o servidores ad-hoc sin backup sistemático.",
+      "prevalencia_pct": 80,
+      "raiz_causal": ["gobernanza_datos", "cultura_transparencia"],
+      "no_es_problema_de": "tecnología",
+      "es_problema_de": "gobernanza de datos y cultura de transparencia",
+      "impacto_idd": "alto",
+      "dimension_primaria": "datos",
+      "dimensiones_secundarias": ["procesos", "cultura"],
+      "consecuencias": [
+        "Silos de información entre departamentos",
+        "Punto único de falla (empleado se va, información se va)",
+        "Imposible automatizar o integrar",
+        "Reportes con retraso e inconsistencias",
+        "Incapacidad de auditar o validar datos"
+      ]
+    },
+    {
+      "id": "director_orquesta",
+      "nombre": "El Director Orquesta",
+      "descripcion": "El director general toma todas las decisiones y es el cuello de botella operativo. El equipo espera instrucción para cualquier decisión fuera del flujo diario.",
+      "prevalencia_pct": 75,
+      "raiz_causal": ["liderazgo_no_distribuido", "cultura_dependencia"],
+      "no_es_problema_de": "carácter del director",
+      "es_problema_de": "brecha de competencia en liderazgo distribuido",
+      "impacto_idd": "crítico",
+      "dimension_primaria": "liderazgo",
+      "dimensiones_secundarias": ["procesos", "cultura"],
+      "consecuencias": [
+        "Fragilidad organizacional extrema ante ausencia del director",
+        "Escala limitada al tamaño que puede manejar una persona",
+        "Equipo sin capacidad de decisión autónoma",
+        "Velocidad de respuesta al mercado muy baja"
+      ]
+    },
+    {
+      "id": "isla_automatizacion",
+      "nombre": "La Isla de Automatización",
+      "descripcion": "Un departamento logró automatización exitosa mientras el resto permanece manual y desconectado, generando ilusión de progreso.",
+      "prevalencia_pct": 60,
+      "raiz_causal": ["estrategia_fragmentada", "gobernanza_transformacion_debil"],
+      "no_es_problema_de": "capacidad técnica",
+      "es_problema_de": "visión fragmentada de la transformación",
+      "impacto_idd": "medio",
+      "dimension_primaria": "procesos",
+      "dimensiones_secundarias": ["estrategia", "tecnologia"],
+      "consecuencias": [
+        "Brechas de integración entre sistemas",
+        "Duplicación de esfuerzos entre áreas",
+        "Director cree que la empresa es moderna cuando no lo es",
+        "Fragmentación creciente con el tiempo"
+      ]
+    },
+    {
+      "id": "resistencia_silenciosa",
+      "nombre": "Resistencia Silenciosa",
+      "descripcion": "La gerencia media dice sí en reuniones pero sabotea la adopción por inacción. Invisible en evaluaciones formales.",
+      "prevalencia_pct": 65,
+      "raiz_causal": ["desconfianza", "incentivos_desalineados", "miedo_obsolescencia"],
+      "no_es_problema_de": "mala voluntad",
+      "es_problema_de": "desconfianza sistémica e incentivos desalineados",
+      "impacto_idd": "crítico",
+      "dimension_primaria": "cultura",
+      "dimensiones_secundarias": ["liderazgo", "procesos"],
+      "deteccion": "Solo con observación etnográfica del flujo de trabajo, no con cuestionarios",
+      "consecuencias": [
+        "Iniciativas que requieren gerencia media se evaporan",
+        "Brecha entre anuncio y ejecución sistemática",
+        "Proyectos técnicamente exitosos pero no adoptados",
+        "Pérdida de credibilidad de la transformación"
+      ]
+    },
+    {
+      "id": "erp_fantasma",
+      "nombre": "El ERP Fantasma",
+      "descripcion": "Sistema empresarial adquirido e implementado, pero solo se utilizan el 20-30% de sus funcionalidades. Capacidades analíticas dormidas.",
+      "prevalencia_pct": 55,
+      "raiz_causal": ["implementacion_tecnica_sin_transformacion", "falta_liderazgo_ejecutivo", "resistencia_cultural"],
+      "no_es_problema_de": "el software ERP",
+      "es_problema_de": "implementación técnica sin transformación organizacional paralela",
+      "impacto_idd": "alto",
+      "dimension_primaria": "tecnologia",
+      "dimensiones_secundarias": ["cultura", "procesos", "estrategia"],
+      "consecuencias": [
+        "Costo hundido masivo (adquisición + implementación)",
+        "Cinismo organizacional: 'para qué invertir si no lo usamos'",
+        "Licencias pagadas sin aprovechamiento",
+        "Modules analíticos dormidos que podrían generar valor"
+      ]
+    },
+    {
+      "id": "datos_no_hablan",
+      "nombre": "Datos que No Hablan",
+      "descripcion": "La organización recopila datos y genera reportes regularmente, pero los reportes no se leen y las decisiones se toman por intuición.",
+      "prevalencia_pct": 55,
+      "raiz_causal": ["cultura_sin_inteligencia", "ausencia_preguntas_gerenciales"],
+      "no_es_problema_de": "ausencia de datos",
+      "es_problema_de": "ausencia de preguntas. Si no sabes qué pregunta responder, los datos son ruido",
+      "impacto_idd": "alto",
+      "dimension_primaria": "datos",
+      "dimensiones_secundarias": ["cultura", "liderazgo"],
+      "consecuencias": [
+        "Reportes producidos por compliance, no por valor",
+        "Decisiones por intuición a pesar de datos disponibles",
+        "Inversión en sistemas de datos sin retorno",
+        "Desconfianza creciente en la información"
+      ]
+    },
+    {
+      "id": "transformacion_sin_brujula",
+      "nombre": "Transformación sin Brújula",
+      "descripcion": "Múltiples proyectos digitales corriendo simultáneamente sin coordinación estratégica. Cada departamento persigue su propia agenda digital.",
+      "prevalencia_pct": 70,
+      "raiz_causal": ["ausencia_estrategia_digital", "gobernanza_debil"],
+      "no_es_problema_de": "falta de actividad digital",
+      "es_problema_de": "ausencia de estrategia digital coherente y gobernanza de iniciativas",
+      "impacto_idd": "alto",
+      "dimension_primaria": "estrategia",
+      "dimensiones_secundarias": ["liderazgo", "procesos"],
+      "consecuencias": [
+        "Recursos dispersos sin impacto acumulativo",
+        "Agotamiento del equipo (fatiga de transformación)",
+        "Organización termina más confundida que antes",
+        "Gasto sin retorno y pérdida de credibilidad"
+      ]
+    }
+  ]
+}

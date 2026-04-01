@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "diagnosticore-blackboard-v1",
+  "title": "DiagnostiCore Blackboard",
+  "description": "Estado compartido entre todos los sub-agentes del sistema de Diagnóstico 360. Cada agente lee y escribe en su sección. El orquestador controla el estado del run.",
+  "version": "1.0",
+  "created_by": "InnoVerse Solutions",
+
+  "type": "object",
+  "required": ["run_id", "estado", "cliente", "timestamps"],
+  "properties": {
+
+    "run_id": {
+      "type": "string",
+      "description": "Identificador único del diagnóstico. Formato: CLIENTE_YYYYMMDD",
+      "example": "COMPOLAT_20260330"
+    },
+
+    "estado": {
+      "type": "string",
+      "enum": ["iniciado", "levantamiento", "analisis_dimensional", "sintesis", "output", "completado", "error"],
+      "description": "Estado global del run. Controla qué agentes pueden operar."
+    },
+
+    "cliente": {
+      "type": "object",
+      "description": "Información del cliente diagnosticado",
+      "required": ["nombre", "sector"],
+      "properties": {
+        "nombre": { "type": "string" },
+        "sector": {
+          "type": "string",
+          "enum": ["manufactura", "inmobiliario", "comercializadora", "servicios", "tecnologia", "salud", "otro"]
+        },
+        "tamaño": {
+          "type": "string",
+          "enum": ["micro", "pequeña", "mediana", "grande"]
+        },
+        "empleados": { "type": "integer" },
+        "anos_operacion": { "type": "integer" },
+        "pais": { "type": "string", "default": "México" },
+        "consultor_responsable": { "type": "string" },
+        "fecha_inicio": { "type": "string", "format": "date" }
+      }
+    },
+
+    "timestamps": {
+      "type": "object",
+      "description": "Registro de cuándo completó cada agente",
+      "properties": {
+        "iniciado":     { "type": "string", "format": "date-time" },
+        "A1_completado": { "type": "string", "format": "date-time" },
+        "A2_completado": { "type": "string", "format": "date-time" },
+        "A3_completado": { "type": "string", "format": "date-time" },
+        "A4_completado": { "type": "string", "format": "date-time" },
+        "A5_completado": { "type": "string", "format": "date-time" },
+        "A6_completado": { "type": "string", "format": "date-time" },
+        "A7_completado": { "type": "string", "format": "date-time" },
+        "A8_completado": { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "evidencia": {
+      "type": "object",
+      "description": "Evidencia cruda del levantamiento. Input para los agentes A1–A6.",
+      "properties": {
+        "transcripciones": {
+          "type": "array",
+          "description": "Transcripciones de entrevistas DECA",
+          "items": {
+            "type": "object",
+            "properties": {
+              "entrevistado_rol": { "type": "string" },
+              "fecha": { "type": "string", "format": "date" },
+              "texto": { "type": "string" },
+              "dimension_primaria": { "type": "string" }
+            }
+          }
+        },
+        "cuestionarios": {
+          "type": "object",
+          "description": "Respuestas de cuestionarios de madurez autoadministrados"
+        },
+        "auditoria_tecnica": {
+          "type": "object",
+          "description": "Resultados de auditoría de infraestructura y sistemas"
+        },
+        "mapas_proceso": {
+          "type": "array",
+          "description": "Documentación de procesos operacionales"
+        },
+        "series_financieras": {
+          "type": "object",
+          "description": "Indicadores financieros de los últimos 36 meses"
+        }
+      }
+    },
+
+    "resultados_dimensionales": {
+      "type": "object",
+      "description": "Outputs de los agentes A1–A6. Cada agente escribe en su clave.",
+      "properties": {
+        "A1_estrategia": { "$ref": "#/$defs/resultado_dimensional" },
+        "A2_liderazgo":  { "$ref": "#/$defs/resultado_dimensional" },
+        "A3_cultura":    { "$ref": "#/$defs/resultado_dimensional" },
+        "A4_procesos":   { "$ref": "#/$defs/resultado_dimensional" },
+        "A5_datos":      { "$ref": "#/$defs/resultado_dimensional" },
+        "A6_tecnologia": { "$ref": "#/$defs/resultado_dimensional" }
+      }
+    },
+
+    "sintesis": {
+      "type": "object",
+      "description": "Output del agente A7. Base para el One-Pager.",
+      "properties": {
+        "scores_madurez": {
+          "type": "object",
+          "properties": {
+            "estrategia":  { "type": "integer", "minimum": 1, "maximum": 5 },
+            "liderazgo":   { "type": "integer", "minimum": 1, "maximum": 5 },
+            "cultura":     { "type": "integer", "minimum": 1, "maximum": 5 },
+            "procesos":    { "type": "integer", "minimum": 1, "maximum": 5 },
+            "datos":       { "type": "integer", "minimum": 1, "maximum": 5 },
+            "tecnologia":  { "type": "integer", "minimum": 1, "maximum": 5 }
+          }
+        },
+        "idd": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Índice de Deuda Digital. Escala 0-100."
+        },
+        "patrones_transversales": {
+          "type": "array",
+          "items": { "type": "string" },
+          "maxItems": 5
+        },
+        "causas_raiz": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["nombre", "descripcion", "evidencia"],
+            "properties": {
+              "nombre": { "type": "string", "description": "Máximo 5 palabras" },
+              "descripcion": { "type": "string", "description": "Lenguaje de negocio, sin jerga" },
+              "evidencia": {
+                "type": "array",
+                "minItems": 2,
+                "items": { "type": "string" }
+              },
+              "dimension_origen": { "type": "string" },
+              "peso_en_sistema": { "type": "string", "enum": ["crítico", "significativo", "moderado"] }
+            }
+          }
+        },
+        "costo_inaccion": {
+          "type": "object",
+          "properties": {
+            "mensual_mxn": { "type": "number" },
+            "anual_mxn": { "type": "number" },
+            "desglose": { "type": "string" },
+            "metodologia": { "type": "string", "enum": ["costo_reduccion", "revenue_perdido", "mixto"] }
+          }
+        },
+        "camino_transformacion": {
+          "type": "object",
+          "properties": {
+            "fase_1_dolor": {
+              "type": "object",
+              "properties": {
+                "nombre": { "type": "string" },
+                "descripcion": { "type": "string" },
+                "semanas": { "type": "integer" }
+              }
+            },
+            "fase_2_evidencia": {
+              "type": "object",
+              "properties": {
+                "nombre": { "type": "string" },
+                "descripcion": { "type": "string" },
+                "semanas": { "type": "integer" }
+              }
+            },
+            "fase_3_autonomia": {
+              "type": "object",
+              "properties": {
+                "nombre": { "type": "string" },
+                "descripcion": { "type": "string" },
+                "semanas": { "type": "integer" }
+              }
+            },
+            "horizonte_total_meses": { "type": "integer" },
+            "capacidades_finales": {
+              "type": "array",
+              "maxItems": 3,
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "narrativa_interna": {
+          "type": "string",
+          "description": "Párrafo de máx. 200 palabras. Uso exclusivo del consultor."
+        }
+      }
+    },
+
+    "one_pager": {
+      "type": "object",
+      "description": "Output final del agente A8. Documento entregado al cliente.",
+      "properties": {
+        "situacion_actual": { "type": "string" },
+        "hallazgos": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "properties": {
+              "observable": { "type": "string" },
+              "consecuencia": { "type": "string" }
+            }
+          }
+        },
+        "causas_raiz": { "type": "array" },
+        "costo_no_actuar": { "type": "object" },
+        "camino": { "type": "object" },
+        "texto_completo_md": { "type": "string" },
+        "version": { "type": "string" },
+        "aprobado_por": { "type": "string" }
+      }
+    },
+
+    "metadatos": {
+      "type": "object",
+      "description": "Control interno del run",
+      "properties": {
+        "version_sistema": { "type": "string", "default": "1.0" },
+        "agentes_completados": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["A1","A2","A3","A4","A5","A6","A7","A8"] }
+        },
+        "errores": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "agente": { "type": "string" },
+              "mensaje": { "type": "string" },
+              "timestamp": { "type": "string" }
+            }
+          }
+        },
+        "notas_consultor": { "type": "string" }
+      }
+    }
+  },
+
+  "$defs": {
+    "resultado_dimensional": {
+      "type": "object",
+      "description": "Schema estándar para el output de cualquier agente A1–A6",
+      "required": ["nivel_madurez", "justificacion", "hallazgos_principales"],
+      "properties": {
+        "nivel_madurez": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "justificacion": {
+          "type": "string",
+          "description": "Evidencia específica que soporta el nivel asignado. Mínimo 2 fuentes."
+        },
+        "hallazgos_principales": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "type": "string" }
+        },
+        "antipatrones_detectados": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "excel_sagrado",
+              "director_orquesta",
+              "isla_automatizacion",
+              "resistencia_silenciosa",
+              "erp_fantasma",
+              "datos_no_hablan",
+              "transformacion_sin_brujula"
+            ]
+          }
+        },
+        "traduccion_negocio": {
+          "type": "string",
+          "description": "Párrafo ejecutivo. Sin jerga técnica. Sin nombres de frameworks."
+        },
+        "senal_alerta_critica": {
+          "type": "string",
+          "description": "La señal más urgente detectada en esta dimensión."
+        },
+        "campos_adicionales": {
+          "type": "object",
+          "description": "Campos específicos de cada dimensión (ej: tipo_desafio en liderazgo)"
+        }
+      }
+    }
+  }
+}

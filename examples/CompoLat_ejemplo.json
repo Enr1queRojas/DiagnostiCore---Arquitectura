@@ -1,0 +1,111 @@
+{
+  "_meta": {
+    "descripcion": "Caso de ejemplo ficticio de InnoVerse Book 360. Empresa manufacturera CompoLat.",
+    "fuente": "InnoVerse Book de Diagnóstico 360 v1.0 (2025) — Capítulo 10.4",
+    "uso": "Referencia de calidad para consultores. Este es el estándar de narrativa bien construida."
+  },
+
+  "run_id": "COMPOLAT_EJEMPLO",
+  "cliente": {
+    "nombre": "CompoLat",
+    "sector": "manufactura",
+    "tamaño": "mediana",
+    "empleados": 150,
+    "anos_operacion": 12,
+    "pais": "México",
+    "ciudad": "Guanajuato",
+    "descripcion": "Fabricante de componentes de autopartes"
+  },
+
+  "scores_madurez": {
+    "estrategia": 1,
+    "liderazgo": 2,
+    "cultura": 2,
+    "procesos": 2,
+    "datos": 1,
+    "tecnologia": 2
+  },
+
+  "idd_calculado": 28,
+
+  "causas_raiz": [
+    {
+      "nombre": "Sin estrategia de especialización",
+      "descripcion": "La empresa intenta competir por volumen Y por especialización simultáneamente, sin elegir. Esto genera inversiones duplicadas, mezcla de clientes incoherente y márgenes inconsistentes. El liderazgo nunca definió si son fabricante de commodity o de especialidad, y esa falta de decisión se traduce en ineficiencia en todo el sistema.",
+      "evidencia": [
+        "Estrategia: Sin documento de estrategia. Dos directivos describen el negocio de manera diferente.",
+        "Procesos: Producción planifica para dos tipos de cliente con requerimientos opuestos.",
+        "Datos: Finanzas no puede calcular margen por tipo de cliente porque los datos no están separados."
+      ],
+      "dimension_origen": "estrategia"
+    },
+    {
+      "nombre": "Procesos operacionales no integrados",
+      "descripcion": "Ventas registra pedidos en un sistema desconectado de Producción. Los cambios de orden son constantes porque Ventas no ve capacidad en tiempo real. Esto genera expediciones de emergencia, márgenes comprimidos y reactividad permanente en lugar de planificación.",
+      "evidencia": [
+        "Procesos: Actualización manual del plan de producción cada viernes en Excel.",
+        "Datos: CRM de Ventas no tiene integración con ningún sistema de Producción.",
+        "Tecnología: Dos sistemas sin API ni integración definida."
+      ],
+      "dimension_origen": "procesos"
+    },
+    {
+      "nombre": "Datos desconectados sin visibilidad financiera",
+      "descripcion": "La dirección no puede ver el margen real por producto porque el costo de producción no llega a Finanzas de forma integrada. Las decisiones de precio y mezcla de clientes se toman sin saber cuál cliente o producto es realmente rentable.",
+      "evidencia": [
+        "Datos: Contabilidad integrada pero sin costos de producción desde Producción.",
+        "Procesos: Costeo por producto es manual y se hace trimestralmente.",
+        "Estrategia: La dirección no puede cuantificar el impacto de cambiar la mezcla de clientes."
+      ],
+      "dimension_origen": "datos"
+    }
+  ],
+
+  "costo_inaccion": {
+    "mensual_mxn": 45000,
+    "anual_mxn": 540000,
+    "desglose": "Expediciones de emergencia (estimado 6/mes × $5,000 costo adicional = $30,000) + margen perdido por planificación reactiva (estimado $15,000/mes). Factores conservadores aplicados: ×70%.",
+    "cita_textual_book": "El costo de delay es significativo: cada mes de operación fragmentada cuesta aproximadamente 45,000 pesos en margen perdido por expediciones de emergencia e ineficiencia productiva."
+  },
+
+  "camino_transformacion": {
+    "fase_1_dolor": {
+      "nombre": "Visibilidad integrada Ventas-Producción",
+      "descripcion": "Conectar el CRM de Ventas con el plan de producción para eliminar cambios de orden no planificados. Resuelve el síntoma más urgente: las expediciones de emergencia.",
+      "semanas": 8
+    },
+    "fase_2_evidencia": {
+      "nombre": "Costeo real por producto",
+      "descripcion": "Implementar captura de costos de producción integrada con Finanzas. Por primera vez, la dirección verá el margen real por producto y tipo de cliente.",
+      "semanas": 10
+    },
+    "fase_3_autonomia": {
+      "nombre": "Proceso de planificación integrado",
+      "descripcion": "Documentar, estandarizar e integrar el proceso completo de order-to-cash con métricas de desempeño visibles para el equipo. El equipo puede mantener y mejorar el proceso sin dependencia externa.",
+      "semanas": 12
+    },
+    "horizonte_total_meses": 8,
+    "capacidades_finales": [
+      "Visibilidad en tiempo real de órdenes, capacidad y márgenes",
+      "Capacidad de decidir la mezcla de clientes con datos reales de rentabilidad",
+      "Proceso de planificación documentado que el equipo puede mejorar autónomamente"
+    ]
+  },
+
+  "narrativa_bien_construida": {
+    "titulo": "EJEMPLO CORRECTO — Narrativa bien construida",
+    "texto": "CompoLat es un fabricante de componentes de autopartes con 150 empleados, ubicado en Guanajuato. La empresa reporta estancamiento en ventas (crecimiento 2% anual los últimos tres años) a pesar de que el mercado creció 8% en el mismo período. El análisis dimensional reveló que las operaciones están fragmentadas. Producción funciona con planificación manual, actualizada en hojas de cálculo que se revisan cada viernes. Ventas registra pedidos en un CRM desconectado de Producción, resultando en cambios de orden constantes, expediciones de emergencia, y márgenes comprimidos. Finanzas mantiene contabilidad integrada pero desconoce el margen real por producto porque no hay integración de costos desde Producción. El liderazgo nunca definió claramente cuál es la estrategia: competir por volumen o por especialización. En consecuencia, la empresa intenta ambas cosas simultáneamente, generando ineficiencia. Las tres causas raíz son: (1) Ausencia de Estrategia clara, (2) Procesos operacionales no documentados ni integrados, (3) Datos desconectados. El costo de delay es significativo: $45,000 pesos mensuales en margen perdido."
+  },
+
+  "narrativa_superficial": {
+    "titulo": "EJEMPLO INCORRECTO — Narrativa superficial (mala práctica)",
+    "texto": "CompoLat carece de herramientas integradas. El CRM no está conectado a Producción. No tiene visibilidad de costos en tiempo real. Necesita implementar un ERP moderno que integre ventas, producción y finanzas. También necesita entrenar al equipo en análisis de datos. Esto mejorará la eficiencia operacional.",
+    "por_que_esta_mal": "Lista problemas de tecnología sin conexión a dinámica empresarial. Sin cuantificación. Sin lógica de priorización. Sin causas raíz identificadas."
+  },
+
+  "antipatrones_detectados": [
+    "excel_sagrado",
+    "transformacion_sin_brujula",
+    "datos_no_hablan"
+  ]
+}

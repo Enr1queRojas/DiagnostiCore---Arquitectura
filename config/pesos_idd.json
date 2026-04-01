@@ -1,0 +1,117 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "descripcion": "Pesos del Índice de Deuda Digital por dimensión. Calibrados contra McKinsey Digital Impact Framework para el contexto PYME latinoamericano.",
+    "suma_total": 1.0,
+    "rango_idd": "0-100 donde 0=máxima deuda, 100=sin deuda"
+  },
+
+  "pesos": {
+    "estrategia": {
+      "peso": 0.25,
+      "justificacion": "Su ausencia bloquea todas las demás dimensiones. Sin claridad de dirección, los líderes no saben qué cultura desarrollar, los procesos se diseñan para eficiencia local no estratégica.",
+      "referencia": "McKinsey Digital Ambition Framework; MIT CISR Designed for Digital"
+    },
+    "cultura": {
+      "peso": 0.20,
+      "justificacion": "La cultura resiste o habilita todas las dimensiones. Procesos reingeniados sin adopción cultural revierten en 90 días. Es la atmósfera en la que ocurren todas las demás.",
+      "referencia": "Prosci ADKAR; Westerman/Bonnet/McAfee 2025"
+    },
+    "liderazgo": {
+      "peso": 0.18,
+      "justificacion": "El liderazgo convierte la estrategia en comportamiento organizacional. Un liderazgo desalineado con la estrategia paraliza la cultura.",
+      "referencia": "Heifetz Adaptive Leadership; Kotter 8-Step"
+    },
+    "procesos": {
+      "peso": 0.15,
+      "justificacion": "El backbone operacional debe ser sólido antes de digitizar. Un proceso manual pero claro es mejor base que un proceso digital caótico.",
+      "referencia": "MIT CISR Operational Backbone; BPM/BPMM"
+    },
+    "datos": {
+      "peso": 0.12,
+      "justificacion": "Los datos son el activo fundamental de la transformación digital. Sin gobernanza de datos, la analítica produce basura.",
+      "referencia": "DAMA-DMBOK 3.0; McKinsey 7 Attributes Data-Driven Enterprises"
+    },
+    "tecnologia": {
+      "peso": 0.10,
+      "justificacion": "Habilitadora de las cinco dimensiones anteriores, no primaria. La causa raíz casi nunca está aquí.",
+      "referencia": "Gartner Hype Cycle; SMACIT MIT CISR"
+    }
+  },
+
+  "escala_madurez_global": {
+    "1": {
+      "nombre": "Reactivo",
+      "descripcion": "La organización reacciona a crisis. Decisiones por intuición. Alta dependencia de individuos clave."
+    },
+    "2": {
+      "nombre": "Consciente",
+      "descripcion": "Conciencia del problema. Iniciativas aisladas sin coordinación. Inconsistencia sistémica."
+    },
+    "3": {
+      "nombre": "Inflexión",
+      "descripcion": "Punto de inflexión: la organización pasa de reaccionaria a proactiva. Estructuras básicas en lugar."
+    },
+    "4": {
+      "nombre": "Integrado",
+      "descripcion": "Capacidades integradas en operación cotidiana. Métricas monitoreadas. Aprendizaje sistemático."
+    },
+    "5": {
+      "nombre": "Transformacional",
+      "descripcion": "La dimensión es ventaja competitiva sostenible. Innovación continua. Capacidad de pivotar rápidamente."
+    }
+  },
+
+  "rangos_idd": [
+    {
+      "min": 0, "max": 25,
+      "percentil": "Percentil 5-20",
+      "etiqueta": "Deuda Crítica",
+      "interpretacion": "Riesgo operacional inminente. Intervención urgente requerida.",
+      "color_hex": "#E94E1B"
+    },
+    {
+      "min": 26, "max": 45,
+      "percentil": "Percentil 20-40",
+      "etiqueta": "Deuda Alta",
+      "interpretacion": "Margen significativo de mejora. Oportunidad comercial clara.",
+      "color_hex": "#F5A623"
+    },
+    {
+      "min": 46, "max": 60,
+      "percentil": "Percentil 40-60",
+      "etiqueta": "Deuda Moderada",
+      "interpretacion": "Brechas específicas identificables. Transformación enfocada.",
+      "color_hex": "#F5CF23"
+    },
+    {
+      "min": 61, "max": 75,
+      "percentil": "Percentil 60-80",
+      "etiqueta": "Deuda Baja",
+      "interpretacion": "Optimización y aceleración. Ventaja competitiva alcanzable.",
+      "color_hex": "#7ED321"
+    },
+    {
+      "min": 76, "max": 100,
+      "percentil": "Percentil 80-95",
+      "etiqueta": "Capacidad Digital",
+      "interpretacion": "Capacidad digital sólida. Innovación como próximo paso.",
+      "color_hex": "#417505"
+    }
+  ],
+
+  "factores_roi": {
+    "reduccion_costo": {
+      "factor": 0.70,
+      "descripcion": "Proyección de ahorro en costos × 70%. Refleja que la mayoría de transformaciones entregan entre 70-100% de lo proyectado."
+    },
+    "aumento_revenue": {
+      "factor": 0.50,
+      "descripcion": "Proyección de aumento de revenue × 50%. Mayor incertidumbre que reducción de costos."
+    },
+    "mitigacion_riesgo": {
+      "factor": 1.00,
+      "descripcion": "Se reporta como escenario (si actúa / si no actúa), no como costo esperado fijo."
+    }
+  }
+}
