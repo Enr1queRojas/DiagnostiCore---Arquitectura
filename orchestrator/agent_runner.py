@@ -43,6 +43,10 @@ from orchestrator.exceptions import (
     ValidationError,
 )
 from orchestrator.llm_client import AsyncLLMClient
+from orchestrator import state_manager
+from orchestrator.quality_gate import QualityGateEscalationError, run_quality_gate
+from orchestrator.contract_builder import build_contract, load_contract
+from orchestrator.onepager_evaluator import OnePagerEscalationError, run_onepager_evaluation
 from telemetry.tracing import get_tracer
 
 logger = logging.getLogger(__name__)
@@ -644,6 +648,76 @@ async def _execute_pipeline(
     """Inner pipeline body — separated so the OTel span context manager in
     run_full_pipeline stays readable while all pipeline logic stays here."""
 
+    # ── Session state: load or init diagnostico-state.json ───────────────────
+    # On first run, init_state creates the persistence file. On resume, load_state
+    # restores where we left off — this is the harness pattern from the Anthropic
+    # Harness Design article: every session begins by reading the progress file.
+    try:
+        s = state_manager.load_state(run_id)
+        logger.info("Resuming diagnostic | id=%s | status=%s", run_id, s.get("status"))
+    except FileNotFoundError:
+        run_path_obj = blackboard._path if hasattr(blackboard, "_path") else None
+        client_info = {}
+        if run_path_obj:
+            try:
+                import json as _json
+                raw = _json.loads(run_path_obj.read_text(encoding="utf-8"))
+                c = raw.get("cliente", {})
+                client_info = {
+                    "name": c.get("nombre", ""),
+                    "industry": c.get("sector", ""),
+                    "size": c.get("tamaño", ""),
+                }
+            except Exception:
+                pass
+        state_manager.init_state(run_id, client_info)
+        logger.info("Session state initialised | id=%s", run_id)
+
+    # ── Contract: generate diagnostic contract before launching agents ────────
+    # The contract defines per-dimension success criteria so that A9 and A1–A6
+    # share the same expectations before analysis begins (sprint contract pattern).
+    existing_contract = load_contract(run_id)
+    if not existing_contract:
+        try:
+            client_info = {}
+            if hasattr(blackboard, "_data"):
+                c = blackboard._data.get("cliente", {})
+                client_info = {
+                    "name": c.get("nombre", ""),
+                    "industry": c.get("sector", ""),
+                    "size": c.get("tamaño", ""),
+                }
+            evidence_keys = []
+            if hasattr(blackboard, "_data"):
+                ev = blackboard._data.get("evidencia", {})
+                if ev.get("transcripciones"):
+                    evidence_keys.append("transcripciones")
+                if ev.get("cuestionarios"):
+                    evidence_keys.append("cuestionarios")
+                if ev.get("auditoria_tecnica"):
+                    evidence_keys.append("auditoria_tecnica")
+                if ev.get("mapas_proceso"):
+                    evidence_keys.append("mapas_proceso")
+                if ev.get("series_financieras"):
+                    evidence_keys.append("series_financieras")
+            if not evidence_keys:
+                evidence_keys = ["transcripciones"]
+            await build_contract(
+                diagnostico_id=run_id,
+                client_info=client_info,
+                available_evidence=evidence_keys,
+                llm_client=llm_client,
+            )
+            logger.info("Contract generated | run=%s", run_id)
+        except Exception as contract_exc:
+            logger.warning(
+                "Contract generation failed (%s) — proceeding without contract", contract_exc
+            )
+    else:
+        logger.info("Using existing contract | run=%s", run_id)
+
+    state_manager.update_pipeline_status(run_id, "dimensions_running")
+
     # ── Phase 1: Dimensional analysis (parallel) ──────────────────────────────
     # All 6 dimensional agents (A1-A6) run concurrently with asyncio.gather().
     # Each agent analyses the same evidence independently — they have no data
@@ -678,14 +752,26 @@ async def _execute_pipeline(
 
     failed_agents: list[str] = []
     for agent_id, outcome in zip(dimensional_agents, outcomes):
+        dim_key = AGENT_DIMENSION_MAP.get(agent_id)
         if isinstance(outcome, BaseException):
             logger.error("[%s] FAILED: %s", agent_id, outcome)
             blackboard.registrar_error(agent_id, str(outcome))
             failed_agents.append(agent_id)
+            if dim_key:
+                state_manager.update_dimension(run_id, dim_key, {"status": "failed"})
+                state_manager.append_history(run_id, agent_id, "failed", str(outcome)[:200])
         else:
             results[agent_id] = outcome
             nivel = outcome.get("nivel_madurez", "?")
             logger.info("[%s] Maturity level: %s/5", agent_id, nivel)
+            if dim_key:
+                import os as _os
+                output_path = f"blackboard/outputs/{run_id}_{agent_id}.json"
+                state_manager.update_dimension(
+                    run_id, dim_key,
+                    {"status": "complete", "score": nivel, "output_path": output_path},
+                )
+                state_manager.append_history(run_id, agent_id, "complete", f"nivel={nivel}")
 
     if failed_agents:
         _orch_exc = OrchestratorError(
@@ -699,6 +785,61 @@ async def _execute_pipeline(
         raise _orch_exc
 
     logger.info("Phase 1 complete — all 6 dimensional agents succeeded in parallel.")
+    state_manager.update_pipeline_status(run_id, "dimensions_complete")
+
+    # ── Quality Gate: A9 evaluates each dimensional output ────────────────────
+    # Each A1–A6 output passes through A9 before synthesis is allowed to run.
+    # If an output fails, the dimensional agent is re-executed with A9's feedback
+    # (max 2 retries). On second failure, QualityGateEscalationError is raised.
+    logger.info("═══ QUALITY GATE: Evaluating A1–A6 outputs | run=%s ═══", run_id)
+    state_manager.update_pipeline_status(run_id, "quality_gate")
+
+    for agent_id in dimensional_agents:
+        dim_key = AGENT_DIMENSION_MAP[agent_id]
+        output = results[agent_id]
+
+        passed, feedback = await run_quality_gate(
+            diagnostico_id=run_id,
+            dimension_key=dim_key,
+            dimensional_output=output,
+            llm_client=llm_client,
+        )
+
+        if not passed:
+            # Retry the dimensional agent with A9's feedback injected into context
+            logger.info("[QG] Retrying %s with quality-gate feedback...", agent_id)
+            blackboard._data.setdefault("quality_gate_feedback", {})[agent_id] = feedback
+
+            try:
+                results[agent_id] = await run_agent(
+                    agent_id=agent_id,
+                    run_id=run_id,
+                    blackboard=blackboard,
+                    llm_client=llm_client,
+                )
+            except Exception as retry_exc:
+                raise OrchestratorError(
+                    f"[{agent_id}] Failed on quality-gate retry: {retry_exc}",
+                    failed_agents=[agent_id],
+                ) from retry_exc
+
+            # Second quality-gate pass
+            passed, _ = await run_quality_gate(
+                diagnostico_id=run_id,
+                dimension_key=dim_key,
+                dimensional_output=results[agent_id],
+                llm_client=llm_client,
+            )
+            if not passed:
+                # QualityGateEscalationError raised on next call (retry_count >= 2)
+                await run_quality_gate(
+                    diagnostico_id=run_id,
+                    dimension_key=dim_key,
+                    dimensional_output=results[agent_id],
+                    llm_client=llm_client,
+                )
+
+    logger.info("Quality gate complete — all dimensional outputs approved.")
 
     # ── Phase 2: Synthesis ─────────────────────────────────────────────────────
     logger.info("═══ PHASE 2: Synthesis | run=%s ═══", run_id)
@@ -715,6 +856,9 @@ async def _execute_pipeline(
         idd = results["A7"].get("idd", "N/A")
         logger.info("[A7] IDD: %s/100", idd)
         pipeline_span.set_attribute("pipeline.idd", float(idd) if idd != "N/A" else -1)
+        state_manager.update_synthesis(run_id, {"status": "complete", "output_path": f"runs/{run_id}.json"})
+        state_manager.update_pipeline_status(run_id, "synthesis")
+        state_manager.append_history(run_id, "A7", "complete", f"IDD={idd}")
 
     except (LLMError, AgentOutputError, ValidationError, OrchestratorError) as exc:
         blackboard.registrar_error("A7", str(exc))
@@ -752,6 +896,51 @@ async def _execute_pipeline(
         raise _orch_exc from exc
 
     logger.info("Phase 3 complete — One-Pager generated.")
+    state_manager.update_onepager(run_id, {"status": "generated", "output_path": f"runs/{run_id}.json"})
+    state_manager.update_pipeline_status(run_id, "evaluation")
+    state_manager.append_history(run_id, "A8", "complete", "One-Pager generated")
+
+    # ── One-Pager evaluation (A10) ─────────────────────────────────────────────
+    logger.info("═══ ONE-PAGER EVALUATION (A10) | run=%s ═══", run_id)
+    op_passed, op_feedback = await run_onepager_evaluation(
+        diagnostico_id=run_id,
+        onepager_output=results["A8"],
+        llm_client=llm_client,
+    )
+
+    if not op_passed:
+        # Retry A8 with A10's feedback
+        logger.info("[A10] One-Pager rejected — regenerating with feedback...")
+        blackboard._data.setdefault("quality_gate_feedback", {})["A8"] = op_feedback
+
+        try:
+            results["A8"] = await run_agent(
+                agent_id="A8",
+                run_id=run_id,
+                blackboard=blackboard,
+                llm_client=llm_client,
+            )
+        except Exception as a8_retry_exc:
+            raise OrchestratorError(
+                f"A8 failed on One-Pager retry after A10 rejection: {a8_retry_exc}",
+                failed_agents=["A8"],
+            ) from a8_retry_exc
+
+        # Second A10 evaluation — if it fails again, OnePagerEscalationError is raised
+        op_passed, _ = await run_onepager_evaluation(
+            diagnostico_id=run_id,
+            onepager_output=results["A8"],
+            llm_client=llm_client,
+        )
+        if not op_passed:
+            # Third call raises OnePagerEscalationError (retry_count >= 2)
+            await run_onepager_evaluation(
+                diagnostico_id=run_id,
+                onepager_output=results["A8"],
+                llm_client=llm_client,
+            )
+
+    logger.info("One-Pager approved by A10 | run=%s", run_id)
     logger.info("════ PIPELINE COMPLETE | run=%s ════", run_id)
 
     event_bus.emit(run_id, "pipeline_done", {"run_id": run_id, "agents_completed": list(results.keys())})

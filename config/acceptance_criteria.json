@@ -1,0 +1,74 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "descripcion": "Checklist de calidad de 8 criterios para el One-Pager de Diagnóstico. Extraído de SKILL.md Sección 10. Usado por el agente A10 para aprobar o rechazar el One-Pager antes de entregarlo al cliente.",
+    "regla": "Si CUALQUIER criterio falla, el One-Pager NO puede entregarse al cliente. A8 debe regenerarlo con el feedback de A10."
+  },
+
+  "criterios": [
+    {
+      "id": "C1",
+      "nombre": "Situación Actual específica del cliente",
+      "criterio": "La sección 'Situación Actual' no puede copiarse a ningún otro cliente.",
+      "verificacion": "Contiene el nombre explícito del cliente, su industria específica, y al menos 2 datos únicos del levantamiento (número de empleados, años de operación, síntoma específico que motivó el diagnóstico, o detalle del modelo de negocio).",
+      "fallo_comun": "Párrafo genérico que podría aplicar a cualquier empresa del mismo sector.",
+      "peso_relativo": "crítico"
+    },
+    {
+      "id": "C2",
+      "nombre": "Causas raíz con nombre ≤ 5 palabras",
+      "criterio": "Cada una de las tres causas raíz tiene un nombre de máximo 5 palabras.",
+      "verificacion": "Contar las palabras de cada nombre de causa raíz. Máximo 5. Los artículos (el, la, los, las, un, una) cuentan como palabras.",
+      "fallo_comun": "Nombres de causas como 'Falta de gobernanza de datos y ausencia de cultura data-driven' (9 palabras).",
+      "peso_relativo": "alto"
+    },
+    {
+      "id": "C3",
+      "nombre": "Costo de no actuar con desglose específico",
+      "criterio": "El costo de no actuar tiene desglose específico al modelo de negocio (no genérico).",
+      "verificacion": "El desglose menciona: qué proceso o área genera el costo, cómo se calculó (margen, nómina, tiempo, clientes perdidos), y aplica factores de conservadurismo (reducción de costo × 70%, aumento de revenue × 50%).",
+      "fallo_comun": "Costo expresado como porcentaje genérico sin origen claro. 'Se estima un ahorro del 20%' sin desglose.",
+      "peso_relativo": "crítico"
+    },
+    {
+      "id": "C4",
+      "nombre": "Sin nombres de frameworks en el texto",
+      "criterio": "No aparece ningún nombre de framework o metodología en el texto del One-Pager.",
+      "verificacion": "Buscar y rechazar si aparece cualquiera de: MIT CISR, ADKAR, DAMA-DMBOK, BPMM, Hype Cycle, Heifetz, Kotter, RPA, BPM, SMACIT, DMAIC, Lean Six Sigma, 'nivel de madurez X', 'backbone operacional', 'hyperautomation', 'cloud-native', 'data governance', 'DevOps', 'microservicios'.",
+      "fallo_comun": "Mencionar 'implementar RPA' o 'mejorar el BPM' en lugar de lenguaje de negocio.",
+      "peso_relativo": "alto"
+    },
+    {
+      "id": "C5",
+      "nombre": "Factores de conservadurismo aplicados al ROI",
+      "criterio": "Los estimados de ROI aplicaron factores de conservadurismo: reducción de costo × 70%, aumento de revenue × 50%.",
+      "verificacion": "Si el One-Pager menciona cifras de ROI, verificar que hay evidencia en el desglose de que se aplicaron estos factores, o que el texto menciona explícitamente que son estimados conservadores.",
+      "fallo_comun": "Proyecciones de ahorro o ingreso sin descuento conservador, o con porcentajes que parecen optimistas (>30% de mejora sin desglose).",
+      "peso_relativo": "alto"
+    },
+    {
+      "id": "C6",
+      "nombre": "Perfil de madurez con barras visuales",
+      "criterio": "El perfil de madurez incluye representación visual (barras ■□) por cada una de las 6 dimensiones con su nivel numérico.",
+      "verificacion": "El One-Pager contiene un bloque con las 6 dimensiones (Estrategia, Cultura, Liderazgo, Procesos, Datos, Tecnología), cada una con barras tipo ■□ y el nivel X/5.",
+      "fallo_comun": "Perfil de madurez expresado solo como texto o tabla sin representación visual de barras.",
+      "peso_relativo": "medio"
+    },
+    {
+      "id": "C7",
+      "nombre": "Horizonte de transformación con número de meses",
+      "criterio": "El horizonte de transformación incluye un número específico de meses.",
+      "verificacion": "La sección del camino de transformación termina con una frase que incluye 'Horizonte: [N] meses' donde N es un número entero.",
+      "fallo_comun": "Horizonte expresado como 'corto plazo' o '6-12 meses' en lugar de un número específico.",
+      "peso_relativo": "medio"
+    },
+    {
+      "id": "C8",
+      "nombre": "Todo el contenido cabe en una sola página",
+      "criterio": "Toda la información del One-Pager cabe en una sola página impresa en A4 o Letter.",
+      "verificacion": "Estimar el volumen de texto: la suma de todas las secciones no debe superar aproximadamente 600 palabras. Si el campo 'texto_completo_md' existe, contar las palabras.",
+      "fallo_comun": "One-Pager que se extiende a 2-3 páginas por exceso de detalle en las causas raíz o el camino de transformación.",
+      "peso_relativo": "crítico"
+    }
+  ]
+}

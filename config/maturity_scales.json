@@ -1,0 +1,403 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "descripcion": "Escalas de madurez 1-5 por dimensión del Diagnóstico 360 de InnoVerse. Extraído de SKILL.md Secciones 4 y 6. Usado por A9 quality-gate para validar coherencia entre nivel asignado y evidencia.",
+    "regla_asignacion": "El nivel debe estar anclado en hechos observables de al menos dos fuentes distintas. Cuando hay duda entre nivel 2 y 3, asignar 2 y justificar qué evidencia faltaría para subir a 3."
+  },
+
+  "global": {
+    "niveles": [
+      {
+        "nivel": 1,
+        "nombre": "Reactivo / Ad-hoc",
+        "descripcion": "La organización reacciona a crisis. No hay capacidad proactiva. Decisiones por intuición. Alta dependencia de individuos clave."
+      },
+      {
+        "nivel": 2,
+        "nombre": "Consciente / Parcial",
+        "descripcion": "Existe conciencia del problema. Iniciativas aisladas sin coordinación. Algunos procesos documentados. Inconsistencia sistémica."
+      },
+      {
+        "nivel": 3,
+        "nombre": "Inflexión",
+        "descripcion": "Punto de inflexión: la organización pasa de reaccionaria a proactiva. Estructuras básicas en lugar. Gobernanza emergente."
+      },
+      {
+        "nivel": 4,
+        "nombre": "Integrado / Adaptativo",
+        "descripcion": "Capacidades integradas en la operación cotidiana. Métricas monitoreadas. Aprendizaje sistemático. Decisiones basadas en datos."
+      },
+      {
+        "nivel": 5,
+        "nombre": "Transformacional",
+        "descripcion": "La dimensión es ventaja competitiva sostenible. Innovación continua. Capacidad de pivotar rápidamente. Ecosistema activo."
+      }
+    ]
+  },
+
+  "A1_estrategia": {
+    "dimension": "Estrategia y Modelos de Negocio",
+    "niveles": [
+      {
+        "nivel": 1,
+        "nombre": "Reactivo",
+        "evidencias_clave": [
+          "Sin visión digital documentada",
+          "Decisiones tecnológicas ad-hoc sin criterio estratégico",
+          "Sin presupuesto dedicado a transformación digital",
+          "Sin KPIs de negocio para iniciativas digitales"
+        ]
+      },
+      {
+        "nivel": 2,
+        "nombre": "Consciente",
+        "evidencias_clave": [
+          "Conciencia de necesidad pero sin plan formal",
+          "Proyectos aislados y desconectados entre sí",
+          "Presupuesto digital fragmentado por departamento",
+          "Iniciativas justificadas por 'la competencia lo tiene'"
+        ]
+      },
+      {
+        "nivel": 3,
+        "nombre": "Inflexión",
+        "evidencias_clave": [
+          "Visión digital documentada y comunicada al equipo",
+          "Roadmap inicial con prioridades claras",
+          "KPIs definidos aunque medición inconsistente",
+          "Distinción entre proyectos digitales y estrategia digital"
+        ]
+      },
+      {
+        "nivel": 4,
+        "nombre": "Integrado",
+        "evidencias_clave": [
+          "Estrategia digital integrada con estrategia de negocio",
+          "Comité digital activo con representación cross-funcional",
+          "Portafolio equilibrado H1/H2/H3",
+          "Inversiones digitales evaluadas con criterios de negocio"
+        ]
+      },
+      {
+        "nivel": 5,
+        "nombre": "Transformacional",
+        "evidencias_clave": [
+          "La estrategia digital ES la estrategia de negocio",
+          "Experimentación sistemática con ciclos rápidos",
+          "Capacidad de pivotar ante cambios del mercado",
+          "Ecosistema de alianzas digitales activo"
+        ]
+      }
+    ],
+    "senales_alerta": [
+      "Director dice 'queremos transformarnos' pero no puede articular el destino deseado",
+      "Múltiples proyectos digitales activos sin hilo conductor estratégico visible",
+      "Inversión digital justificada por 'la competencia lo tiene' en lugar de caso de negocio cuantificado"
+    ]
+  },
+
+  "A2_liderazgo": {
+    "dimension": "Liderazgo y Organizaciones",
+    "niveles": [
+      {
+        "nivel": 1,
+        "nombre": "Ausente",
+        "evidencias_clave": [
+          "Sin liderazgo dedicado a transformación digital",
+          "Sin CTO/CDO ni función equivalente",
+          "Sin comité de transformación",
+          "Decisiones digitales reactivas y fragmentadas"
+        ]
+      },
+      {
+        "nivel": 2,
+        "nombre": "Inconsistente",
+        "evidencias_clave": [
+          "Líder designado pero sin autoridad real",
+          "Liderazgo habla de transformación pero no asigna recursos",
+          "IT reporta a Finance en lugar de CEO",
+          "Bonos basados en métricas operativas antiguas"
+        ]
+      },
+      {
+        "nivel": 3,
+        "nombre": "Inflexión",
+        "evidencias_clave": [
+          "Liderazgo ejecutivo comprometido con hechos observables",
+          "Comité digital activo",
+          "CTO/CDO reporta directamente al CEO",
+          "Presupuesto dedicado a transformación"
+        ]
+      },
+      {
+        "nivel": 4,
+        "nombre": "Adaptativo",
+        "evidencias_clave": [
+          "Liderazgo demuestra competencias adaptativas",
+          "Atrae y retiene talento digital",
+          "Desarrolla próxima generación de líderes",
+          "Clima organizacional positivo medido"
+        ]
+      },
+      {
+        "nivel": 5,
+        "nombre": "Transformacional",
+        "evidencias_clave": [
+          "Organización con capacidades dinámicas de adaptación rápida",
+          "Innovación continua como norma cultural",
+          "Ecosistema de alianzas con startups y academia",
+          "Liderazgo modela públicamente el aprendizaje continuo"
+        ]
+      }
+    ],
+    "senales_alerta": [
+      "Director dice 'sí a todo' en reuniones pero nada cambia después",
+      "IT reporta a Finance en lugar de reportar a Board o CEO",
+      "Liderazgo interpreta toda resistencia como 'falta de visión' sin preguntarse qué cambio adaptativo requieren ellos mismos"
+    ]
+  },
+
+  "A3_cultura": {
+    "dimension": "Cultura y Gestión del Cambio",
+    "niveles": [
+      {
+        "nivel": 1,
+        "nombre": "Reactiva",
+        "evidencias_clave": [
+          "Cambia solo cuando es obligada por crisis o regulación",
+          "Resistencia activa o pasiva documentada",
+          "Capacitaciones ignoradas sistemáticamente",
+          "Sistemas nuevos implementados pero no usados"
+        ]
+      },
+      {
+        "nivel": 2,
+        "nombre": "Consciente",
+        "evidencias_clave": [
+          "Conciencia de necesidad de cambio sin modelo formal",
+          "Proyectos implementados pero parcialmente adoptados",
+          "Sin plan de comunicación del cambio",
+          "Métricas de implementación, no de adopción"
+        ]
+      },
+      {
+        "nivel": 3,
+        "nombre": "Gestionada",
+        "evidencias_clave": [
+          "Metodología de gestión del cambio implementada",
+          "Comunicación planeada con mensajes consistentes",
+          "Champions de cambio identificados y empoderados",
+          "Métricas de adopción medidas (% usuarios activos)"
+        ]
+      },
+      {
+        "nivel": 4,
+        "nombre": "Integrada",
+        "evidencias_clave": [
+          "Gestión del cambio es parte estándar de todos los proyectos",
+          "80%+ de adopción en iniciativas recientes",
+          "Equipo dedicado a transformación",
+          "Retrospectivas sistemáticas post-implementación"
+        ]
+      },
+      {
+        "nivel": 5,
+        "nombre": "Adaptativa",
+        "evidencias_clave": [
+          "Organización antifrágil respecto al cambio",
+          "Ciclos de experimentación ágiles como práctica estándar",
+          "Alta retención de talento en períodos de cambio",
+          "Celebra y aprende públicamente de fracasos"
+        ]
+      }
+    ],
+    "senales_alerta": [
+      "Gerencia media dice sí en reuniones y no cambia nada en pasillos",
+      "Fatiga de cambio acumulada de iniciativas anteriores fallidas",
+      "Resistencia silenciosa: solo detectable con observación etnográfica, no con cuestionarios"
+    ]
+  },
+
+  "A4_procesos": {
+    "dimension": "Procesos y Operaciones",
+    "niveles": [
+      {
+        "nivel": 1,
+        "nombre": "Ad-hoc",
+        "evidencias_clave": [
+          "Procesos varían por persona, no están documentados",
+          "Sin registros formales de operación",
+          "Reactividad total ante problemas",
+          "El proceso 'está en la cabeza' de alguien clave"
+        ]
+      },
+      {
+        "nivel": 2,
+        "nombre": "Parcial",
+        "evidencias_clave": [
+          "Algunos procesos por escrito, documentación inconsistente",
+          "Mediciones informales sin sistema",
+          "Mejora reactiva no planeada",
+          "Sin SLAs definidos"
+        ]
+      },
+      {
+        "nivel": 3,
+        "nombre": "Estandarizado",
+        "evidencias_clave": [
+          "Procesos formales con documentación actualizada",
+          "SLAs básicos definidos aunque medición inconsistente",
+          "Mejora planeada aunque no sistemática",
+          "Dueños de proceso asignados informalmente"
+        ]
+      },
+      {
+        "nivel": 4,
+        "nombre": "Medido y controlado",
+        "evidencias_clave": [
+          "Métricas de proceso en tiempo real o semi-real",
+          "Optimización continua documentada",
+          "Automatización en flujos principales",
+          "Dueños de proceso formales con accountability"
+        ]
+      },
+      {
+        "nivel": 5,
+        "nombre": "Optimizado continuamente",
+        "evidencias_clave": [
+          "Automatización avanzada (RPA/Cognitive) en múltiples flujos",
+          "Análisis predictivo para anticipar cuellos de botella",
+          "Innovación de procesos como práctica estándar",
+          "Benchmarking continuo contra mejores prácticas"
+        ]
+      }
+    ],
+    "senales_alerta": [
+      "El proceso core depende de una persona que 'sabe cómo se hace'",
+      "Más del 60% del trabajo operativo es manual y repetitivo",
+      "Proyectos de automatización anteriores que fracasaron por resistencia"
+    ]
+  },
+
+  "A5_datos": {
+    "dimension": "Datos, Analítica e Inteligencia de Negocios",
+    "niveles": [
+      {
+        "nivel": 1,
+        "nombre": "Sin gobernanza",
+        "evidencias_clave": [
+          "Datos críticos en spreadsheets personales sin ownership",
+          "Silos totales entre departamentos",
+          "Reporting manual ad-hoc sin proceso",
+          "Nadie confía en los datos para tomar decisiones"
+        ]
+      },
+      {
+        "nivel": 2,
+        "nombre": "Gobernanza básica",
+        "evidencias_clave": [
+          "Algunos registros centralizados con calidad variable",
+          "Reportes por solicitud, no sistemáticos",
+          "Múltiples versiones de la 'verdad' según el área",
+          "Definiciones de métricas inconsistentes entre departamentos"
+        ]
+      },
+      {
+        "nivel": 3,
+        "nombre": "Gobernanza formal",
+        "evidencias_clave": [
+          "Data warehouse o repositorio central establecido",
+          "Definiciones estándar de métricas documentadas",
+          "Reportes regulares confiables con proceso definido",
+          "Dueños de datos asignados por dominio"
+        ]
+      },
+      {
+        "nivel": 4,
+        "nombre": "Analítica avanzada",
+        "evidencias_clave": [
+          "BI avanzada con dashboards en tiempo real",
+          "Al menos un modelo predictivo en producción",
+          "Decisiones clave documentadas como data-driven",
+          "Calidad de datos medida sistemáticamente"
+        ]
+      },
+      {
+        "nivel": 5,
+        "nombre": "Prescriptiva con IA",
+        "evidencias_clave": [
+          "Decisiones automatizadas basadas en modelos",
+          "Recomendaciones en tiempo real basadas en IA",
+          "ROI de iniciativas de datos medido y reportado",
+          "Gobernanza de modelos de IA activa y documentada"
+        ]
+      }
+    ],
+    "senales_alerta": [
+      "El área de ventas y el área de finanzas reportan números diferentes para la misma métrica",
+      "Los reportes se generan pero nadie los lee en las reuniones",
+      "Shadow IT: múltiples Excels paralelos al sistema oficial"
+    ]
+  },
+
+  "A6_tecnologia": {
+    "dimension": "Tecnología y Arquitectura Digital",
+    "niveles": [
+      {
+        "nivel": 1,
+        "nombre": "Legacy monolítico",
+        "evidencias_clave": [
+          "Sistemas antiguos sin integración entre sí",
+          "IT 100% en mantenimiento, 0% en innovación",
+          "Deuda técnica alta o crítica",
+          "Sin documentación de arquitectura"
+        ]
+      },
+      {
+        "nivel": 2,
+        "nombre": "Modernización parcial",
+        "evidencias_clave": [
+          "Algunos sistemas actualizados, otros legacy",
+          "Integración puntual (no sistemática)",
+          "Ciberseguridad básica reactiva",
+          "ERP presente pero subutilizado (ERP Fantasma)"
+        ]
+      },
+      {
+        "nivel": 3,
+        "nombre": "Arquitectura estándar",
+        "evidencias_clave": [
+          "ERP moderno con adopción >70%",
+          "Cloud parcial (SaaS principales en cloud)",
+          "Integración formal entre sistemas core",
+          "Ciberseguridad documentada con políticas activas"
+        ]
+      },
+      {
+        "nivel": 4,
+        "nombre": "Plataforma digital",
+        "evidencias_clave": [
+          "Microservicios o APIs abiertas para integración",
+          "Cloud-first como política",
+          "DevOps o CI/CD implementado",
+          "Pilotos de IA/ML en producción"
+        ]
+      },
+      {
+        "nivel": 5,
+        "nombre": "Ágil y generativa",
+        "evidencias_clave": [
+          "Serverless/cloud-native como arquitectura base",
+          "AI/ML integrado en procesos de negocio core",
+          "Automatización end-to-end documentada",
+          "Zero-trust security implementado"
+        ]
+      }
+    ],
+    "senales_alerta": [
+      "IT distribuye más del 80% de su capacidad en mantenimiento y menos del 20% en innovación",
+      "ERP adquirido con menos del 30% de módulos en uso",
+      "Sistemas críticos sin soporte del proveedor (end-of-life)"
+    ]
+  }
+}
