@@ -43,6 +43,7 @@ from orchestrator.exceptions import (
     ValidationError,
 )
 from orchestrator.llm_client import AsyncLLMClient
+from orchestrator import state_manager
 from telemetry.tracing import get_tracer
 
 logger = logging.getLogger(__name__)
@@ -644,6 +645,33 @@ async def _execute_pipeline(
     """Inner pipeline body — separated so the OTel span context manager in
     run_full_pipeline stays readable while all pipeline logic stays here."""
 
+    # ── Session state: load or init diagnostico-state.json ───────────────────
+    # On first run, init_state creates the persistence file. On resume, load_state
+    # restores where we left off — this is the harness pattern from the Anthropic
+    # Harness Design article: every session begins by reading the progress file.
+    try:
+        s = state_manager.load_state(run_id)
+        logger.info("Resuming diagnostic | id=%s | status=%s", run_id, s.get("status"))
+    except FileNotFoundError:
+        run_path_obj = blackboard._path if hasattr(blackboard, "_path") else None
+        client_info = {}
+        if run_path_obj:
+            try:
+                import json as _json
+                raw = _json.loads(run_path_obj.read_text(encoding="utf-8"))
+                c = raw.get("cliente", {})
+                client_info = {
+                    "name": c.get("nombre", ""),
+                    "industry": c.get("sector", ""),
+                    "size": c.get("tamaño", ""),
+                }
+            except Exception:
+                pass
+        state_manager.init_state(run_id, client_info)
+        logger.info("Session state initialised | id=%s", run_id)
+
+    state_manager.update_pipeline_status(run_id, "dimensions_running")
+
     # ── Phase 1: Dimensional analysis (parallel) ──────────────────────────────
     # All 6 dimensional agents (A1-A6) run concurrently with asyncio.gather().
     # Each agent analyses the same evidence independently — they have no data
@@ -678,14 +706,26 @@ async def _execute_pipeline(
 
     failed_agents: list[str] = []
     for agent_id, outcome in zip(dimensional_agents, outcomes):
+        dim_key = AGENT_DIMENSION_MAP.get(agent_id)
         if isinstance(outcome, BaseException):
             logger.error("[%s] FAILED: %s", agent_id, outcome)
             blackboard.registrar_error(agent_id, str(outcome))
             failed_agents.append(agent_id)
+            if dim_key:
+                state_manager.update_dimension(run_id, dim_key, {"status": "failed"})
+                state_manager.append_history(run_id, agent_id, "failed", str(outcome)[:200])
         else:
             results[agent_id] = outcome
             nivel = outcome.get("nivel_madurez", "?")
             logger.info("[%s] Maturity level: %s/5", agent_id, nivel)
+            if dim_key:
+                import os as _os
+                output_path = f"blackboard/outputs/{run_id}_{agent_id}.json"
+                state_manager.update_dimension(
+                    run_id, dim_key,
+                    {"status": "complete", "score": nivel, "output_path": output_path},
+                )
+                state_manager.append_history(run_id, agent_id, "complete", f"nivel={nivel}")
 
     if failed_agents:
         _orch_exc = OrchestratorError(
@@ -699,6 +739,7 @@ async def _execute_pipeline(
         raise _orch_exc
 
     logger.info("Phase 1 complete — all 6 dimensional agents succeeded in parallel.")
+    state_manager.update_pipeline_status(run_id, "dimensions_complete")
 
     # ── Phase 2: Synthesis ─────────────────────────────────────────────────────
     logger.info("═══ PHASE 2: Synthesis | run=%s ═══", run_id)
@@ -715,6 +756,9 @@ async def _execute_pipeline(
         idd = results["A7"].get("idd", "N/A")
         logger.info("[A7] IDD: %s/100", idd)
         pipeline_span.set_attribute("pipeline.idd", float(idd) if idd != "N/A" else -1)
+        state_manager.update_synthesis(run_id, {"status": "complete", "output_path": f"runs/{run_id}.json"})
+        state_manager.update_pipeline_status(run_id, "synthesis")
+        state_manager.append_history(run_id, "A7", "complete", f"IDD={idd}")
 
     except (LLMError, AgentOutputError, ValidationError, OrchestratorError) as exc:
         blackboard.registrar_error("A7", str(exc))
@@ -752,6 +796,9 @@ async def _execute_pipeline(
         raise _orch_exc from exc
 
     logger.info("Phase 3 complete — One-Pager generated.")
+    state_manager.update_onepager(run_id, {"status": "generated", "output_path": f"runs/{run_id}.json"})
+    state_manager.update_pipeline_status(run_id, "output")
+    state_manager.append_history(run_id, "A8", "complete", "One-Pager generated")
     logger.info("════ PIPELINE COMPLETE | run=%s ════", run_id)
 
     event_bus.emit(run_id, "pipeline_done", {"run_id": run_id, "agents_completed": list(results.keys())})

@@ -1,0 +1,82 @@
+{
+  "_meta": {
+    "schema_version": "2.0",
+    "descripcion": "Estado del diagnóstico activo. Fuente única de verdad para reanudar sesiones entre Claude Code.",
+    "nota": "Este archivo es REEMPLAZADO por cada nuevo diagnóstico activo. Los resultados históricos viven en runs/."
+  },
+  "diagnostico_id": "",
+  "client": {
+    "name": "",
+    "industry": "",
+    "size": ""
+  },
+  "status": "initialized",
+  "created_at": "",
+  "updated_at": "",
+  "contract": {
+    "path": "",
+    "status": "pending"
+  },
+  "dimensions": {
+    "A1_estrategia": {
+      "status": "pending",
+      "output_path": "",
+      "eval_path": "",
+      "score": null,
+      "eval_passed": null,
+      "retry_count": 0
+    },
+    "A2_liderazgo": {
+      "status": "pending",
+      "output_path": "",
+      "eval_path": "",
+      "score": null,
+      "eval_passed": null,
+      "retry_count": 0
+    },
+    "A3_cultura": {
+      "status": "pending",
+      "output_path": "",
+      "eval_path": "",
+      "score": null,
+      "eval_passed": null,
+      "retry_count": 0
+    },
+    "A4_procesos": {
+      "status": "pending",
+      "output_path": "",
+      "eval_path": "",
+      "score": null,
+      "eval_passed": null,
+      "retry_count": 0
+    },
+    "A5_datos": {
+      "status": "pending",
+      "output_path": "",
+      "eval_path": "",
+      "score": null,
+      "eval_passed": null,
+      "retry_count": 0
+    },
+    "A6_tecnologia": {
+      "status": "pending",
+      "output_path": "",
+      "eval_path": "",
+      "score": null,
+      "eval_passed": null,
+      "retry_count": 0
+    }
+  },
+  "synthesis": {
+    "status": "pending",
+    "output_path": ""
+  },
+  "onepager": {
+    "status": "pending",
+    "output_path": "",
+    "eval_path": "",
+    "eval_passed": null,
+    "retry_count": 0
+  },
+  "history": []
+}
