@@ -67,8 +67,8 @@ def test_run_agent_session_returns_parsed_json():
 
 
 def test_run_agent_session_breaks_on_terminated():
-    """session.status_terminated stops the loop; no output → AgentOutputError."""
-    from orchestrator.exceptions import AgentOutputError
+    """session.status_terminated stops the loop; no output → LLMError."""
+    from orchestrator.exceptions import LLMError
     mock_client = MagicMock()
     mock_client.beta.sessions.create.return_value = MagicMock(id="sesn_002")
     mock_client.beta.sessions.stream.return_value = _mock_stream([
@@ -76,7 +76,7 @@ def test_run_agent_session_breaks_on_terminated():
     ])
 
     runner = _build_runner(mock_client)
-    with pytest.raises(AgentOutputError, match="not valid JSON"):
+    with pytest.raises(LLMError, match="no output"):
         runner.run_agent_session("A1", {}, "RUN")
 
 

@@ -18,7 +18,7 @@ from orchestrator.exceptions import AgentOutputError, LLMError
 
 logger = logging.getLogger(__name__)
 
-CONFIG_PATH = Path("config/managed_agents_config.json")
+CONFIG_PATH = Path(__file__).parent.parent / "config" / "managed_agents_config.json"
 
 
 class SessionRunner:
@@ -117,10 +117,17 @@ class SessionRunner:
             session_id, agent_key, len(raw),
         )
 
+        if not raw:
+            raise LLMError(
+                f"Session {session_id} ({agent_key}) terminated with no output",
+                agent_id=agent_key,
+            )
+
         try:
             return json.loads(raw)
         except json.JSONDecodeError as exc:
             raise AgentOutputError(
                 f"{agent_key} (session={session_id}) output is not valid JSON: {exc}\n"
-                f"First 500 chars: {raw[:500]}"
+                f"First 500 chars: {raw[:500]}",
+                agent_id=agent_key,
             ) from exc
