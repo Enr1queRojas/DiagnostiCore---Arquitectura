@@ -50,6 +50,19 @@ def setup_managed_agents(
         )
         return json.loads(config_path.read_text(encoding="utf-8"))
 
+    # Pre-flight: verify all prompt files exist before making any billable API calls.
+    missing_prompts = []
+    for agent_key, prompt_file in AGENT_PROMPT_MAP.items():
+        canonical = agents_dir / prompt_file
+        fallback = agents_dir / f"{agent_key}.md"
+        if not canonical.exists() and not fallback.exists():
+            missing_prompts.append(prompt_file)
+    if missing_prompts:
+        raise FileNotFoundError(
+            f"Missing agent prompt files in {agents_dir}: {missing_prompts}. "
+            "Create them before running setup."
+        )
+
     client = anthropic.Anthropic()
 
     logger.info("Creating cloud environment 'diagnosticore-prod'...")

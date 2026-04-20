@@ -51,6 +51,27 @@ def test_setup_is_idempotent(tmp_path):
     assert result["environment_id"] == "env_existing"
 
 
+def test_setup_raises_before_api_calls_when_prompt_files_missing(tmp_path):
+    """Pre-flight check raises FileNotFoundError listing all missing files before any API call."""
+    config_path = tmp_path / "config.json"
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir()
+    # Provide only a subset — leave A2 and CB missing.
+    present_keys = EXPECTED_AGENT_KEYS - {"A2", "CB"}
+    for key in present_keys:
+        (agents_dir / f"{key}.md").write_text(f"prompt {key}")
+
+    with patch("orchestrator.managed_agent_setup.anthropic.Anthropic") as mock_cls:
+        from orchestrator.managed_agent_setup import setup_managed_agents
+        with pytest.raises(FileNotFoundError) as exc_info:
+            setup_managed_agents(config_path=config_path, agents_dir=agents_dir)
+        mock_cls.return_value.beta.environments.create.assert_not_called()
+
+    error_msg = str(exc_info.value)
+    assert "A2_liderazgo.md" in error_msg
+    assert "CB_contract_builder.md" in error_msg
+
+
 def test_setup_calls_agents_create_for_each_key(tmp_path):
     """agents.create() is called exactly once per agent key, not per run."""
     config_path = tmp_path / "config.json"

@@ -16,6 +16,12 @@ Import chain that requires stubbing:
 """
 import sys
 import types
+from pathlib import Path
+
+# Ensure the project root is on sys.path so 'orchestrator' is importable.
+_PROJECT_ROOT = str(Path(__file__).parent.parent)
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 
 def _make_stub(name: str) -> types.ModuleType:
