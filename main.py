@@ -46,7 +46,9 @@ from auth.jwt_auth import (
     verify_run_token,
 )
 from blackboard.blackboard import Blackboard
-from orchestrator import AsyncLLMClient, OrchestratorError, run_full_pipeline
+from orchestrator import OrchestratorError, run_full_pipeline
+from orchestrator.session_runner import SessionRunner
+from orchestrator.managed_agent_setup import setup_managed_agents
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -162,6 +164,15 @@ def _verify_existing_run(run_id: str, runs_dir: str) -> None:
 async def main(args: argparse.Namespace) -> int:
     logger = logging.getLogger("main")
 
+    # ── Handle --setup flag (one-time setup, exits after completion) ──────────
+    if args.setup:
+        logger.info("Running one-time Managed Agent setup...")
+        setup_managed_agents()
+        logger.info("Setup complete. Config saved to config/managed_agents_config.json")
+        print("\nSetup complete. Run IDs saved to config/managed_agents_config.json")
+        print("You can now run diagnostics with: python main.py --cliente ...\n")
+        return 0
+
     # ── Validate environment ──────────────────────────────────────────────────
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
@@ -201,14 +212,9 @@ async def main(args: argparse.Namespace) -> int:
     else:
         run_id = _create_new_run(args)
 
-    # ── Initialise LLM client ─────────────────────────────────────────────────
-    agents_dir = Path(args.agents_dir) if args.agents_dir else None
-    llm_client = AsyncLLMClient(
-        api_key=api_key,
-        model=args.model,
-        agents_dir=agents_dir,
-    )
-    logger.info("LLM client ready | model=%s", args.model)
+    # ── Initialise SessionRunner ──────────────────────────────────────────────
+    runner = SessionRunner()
+    logger.info("SessionRunner ready — Managed Agents mode")
 
     # ── Execute pipeline ──────────────────────────────────────────────────────
     logger.info("Starting DiagnostiCore pipeline | run=%s", run_id)
@@ -216,7 +222,7 @@ async def main(args: argparse.Namespace) -> int:
     try:
         results = await run_full_pipeline(
             run_id=run_id,
-            llm_client=llm_client,
+            runner=runner,
             runs_dir=args.runs_dir,
         )
     except OrchestratorError as exc:
@@ -263,7 +269,7 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=__doc__,
     )
 
-    # Mutually exclusive: either resume an existing run OR start a new one
+    # Mutually exclusive: either resume an existing run, start a new one, or run setup
     run_source = parser.add_mutually_exclusive_group(required=True)
     run_source.add_argument(
         "--run-id",
@@ -275,6 +281,15 @@ def _build_parser() -> argparse.ArgumentParser:
         "--cliente",
         metavar="NOMBRE",
         help="Client name — starts a new diagnostic run.",
+    )
+    run_source.add_argument(
+        "--setup",
+        action="store_true",
+        default=False,
+        help=(
+            "ONE-TIME: create Managed Agent objects and cloud environment. "
+            "Run before the first diagnostic. Requires ANTHROPIC_API_KEY."
+        ),
     )
 
     # New-run parameters (only meaningful when --cliente is used)
