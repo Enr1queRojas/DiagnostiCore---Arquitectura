@@ -609,8 +609,7 @@ async def _execute_pipeline(
                     evidence_keys.append("series_financieras")
             if not evidence_keys:
                 evidence_keys = ["transcripciones"]
-            await asyncio.to_thread(
-                build_contract,
+            await build_contract(
                 diagnostico_id=run_id,
                 client_info=client_info,
                 available_evidence=evidence_keys,
@@ -710,7 +709,7 @@ async def _execute_pipeline(
             diagnostico_id=run_id,
             dimension_key=dim_key,
             dimensional_output=output,
-            llm_client=llm_client,
+            runner=runner,
         )
 
         if not passed:
@@ -723,7 +722,7 @@ async def _execute_pipeline(
                     agent_id=agent_id,
                     run_id=run_id,
                     blackboard=blackboard,
-                    llm_client=llm_client,
+                    runner=runner,
                 )
             except Exception as retry_exc:
                 raise OrchestratorError(
@@ -736,7 +735,7 @@ async def _execute_pipeline(
                 diagnostico_id=run_id,
                 dimension_key=dim_key,
                 dimensional_output=results[agent_id],
-                llm_client=llm_client,
+                runner=runner,
             )
             if not passed:
                 # QualityGateEscalationError raised on next call (retry_count >= 2)
@@ -744,7 +743,7 @@ async def _execute_pipeline(
                     diagnostico_id=run_id,
                     dimension_key=dim_key,
                     dimensional_output=results[agent_id],
-                    llm_client=llm_client,
+                    runner=runner,
                 )
 
     logger.info("Quality gate complete — all dimensional outputs approved.")
@@ -759,7 +758,7 @@ async def _execute_pipeline(
             agent_id="A7",
             run_id=run_id,
             blackboard=blackboard,
-            llm_client=llm_client,
+            runner=runner,
         )
         idd = results["A7"].get("idd", "N/A")
         logger.info("[A7] IDD: %s/100", idd)
@@ -791,7 +790,7 @@ async def _execute_pipeline(
             agent_id="A8",
             run_id=run_id,
             blackboard=blackboard,
-            llm_client=llm_client,
+            runner=runner,
         )
     except (LLMError, AgentOutputError, ValidationError, OrchestratorError) as exc:
         blackboard.registrar_error("A8", str(exc))
@@ -813,7 +812,7 @@ async def _execute_pipeline(
     op_passed, op_feedback = await run_onepager_evaluation(
         diagnostico_id=run_id,
         onepager_output=results["A8"],
-        llm_client=llm_client,
+        runner=runner,
     )
 
     if not op_passed:
@@ -826,7 +825,7 @@ async def _execute_pipeline(
                 agent_id="A8",
                 run_id=run_id,
                 blackboard=blackboard,
-                llm_client=llm_client,
+                runner=runner,
             )
         except Exception as a8_retry_exc:
             raise OrchestratorError(
@@ -838,14 +837,14 @@ async def _execute_pipeline(
         op_passed, _ = await run_onepager_evaluation(
             diagnostico_id=run_id,
             onepager_output=results["A8"],
-            llm_client=llm_client,
+            runner=runner,
         )
         if not op_passed:
             # Third call raises OnePagerEscalationError (retry_count >= 2)
             await run_onepager_evaluation(
                 diagnostico_id=run_id,
                 onepager_output=results["A8"],
-                llm_client=llm_client,
+                runner=runner,
             )
 
     logger.info("One-Pager approved by A10 | run=%s", run_id)
