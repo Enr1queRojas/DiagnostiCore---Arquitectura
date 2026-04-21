@@ -1,0 +1,148 @@
+flowchart TB
+    %% ─────────────────────────────────────────────
+    %% DiagnostiCore — Diagrama de Arquitectura
+    %% ─────────────────────────────────────────────
+
+    subgraph ENTRY["🚪 Puntos de entrada"]
+        CLI["main.py<br/>(CLI)"]
+        API["api/app.py<br/>(FastAPI + SSE)"]
+        AUTH["auth/jwt_auth.py<br/>(tokens por run)"]
+    end
+
+    subgraph ORCH["🧠 Orchestrator — pipeline agéntico"]
+        RUNPIPE["run_full_pipeline()<br/>agent_runner.py"]
+        RUNAGENT["run_agent()<br/>lanza un sub-agente"]
+        LLMC["AsyncLLMClient<br/>llm_client.py<br/>(Anthropic SDK)"]
+        CONTRACT["contract_builder.py<br/>genera contrato pre-análisis"]
+        QG["quality_gate.py<br/>run_quality_gate() · A9"]
+        OPE["onepager_evaluator.py<br/>run_onepager_evaluation() · A10"]
+        STATE["state_manager.py<br/>load / save / update<br/>diagnostico-state.json"]
+        EXC["exceptions.py<br/>OrchestratorError · LLMError<br/>ValidationError · AgentOutput"]
+    end
+
+    subgraph AGENTS["🤖 Prompts de agentes (/agents)"]
+        A1["A1 Estrategia"]
+        A2["A2 Liderazgo"]
+        A3["A3 Cultura"]
+        A4["A4 Procesos"]
+        A5["A5 Datos"]
+        A6["A6 Tecnología"]
+        A7["A7 Síntesis"]
+        A8["A8 One-Pager"]
+        A9["A9 Quality Gate"]
+        A10["A10 One-Pager Eval"]
+    end
+
+    subgraph BB["📋 Blackboard — estado compartido"]
+        BBPY["blackboard.py<br/>Blackboard class<br/>(lock + persist JSON)"]
+        RUNFILE[("runs/{RUN_ID}.json<br/>fuente de verdad del run")]
+        DSTATE[("blackboard/<br/>diagnostico-state.json")]
+        OUTS[("blackboard/outputs/<br/>A1..A6 JSON")]
+        EVALS[("blackboard/evaluations/<br/>A9 por dimensión")]
+        SYNTH[("blackboard/synthesis/<br/>A7")]
+        ONEP[("blackboard/onepager/<br/>A8 + eval A10")]
+        CONTR[("blackboard/contracts/<br/>contrato del cliente")]
+    end
+
+    subgraph CFG["⚙️ Configuración y herramientas"]
+        MAT["config/maturity_scales.json"]
+        ANTI["config/antipatterns.json"]
+        ACC["config/acceptance_criteria.json"]
+        PESOS["config/pesos_idd.json"]
+        TOOLS["tools/<br/>calcular_idd · cuantificar_costo<br/>detectar_antipatron"]
+    end
+
+    subgraph MCP["🔌 mcp_adapter"]
+        BBSRV["blackboard_server.py"]
+        TOOLSRV["tools_server.py"]
+        SBX["sandbox.py"]
+        PII["pii_filter.py"]
+    end
+
+    subgraph OBS["📡 Observabilidad"]
+        TRACE["telemetry/tracing.py<br/>OpenTelemetry"]
+        SSE["api/sse.py<br/>event_bus + streaming"]
+    end
+
+    %% ── Entradas al pipeline ─────────────────────
+    CLI -->|crear/resume run| RUNPIPE
+    API -->|POST /runs/start| RUNPIPE
+    API -->|GET /runs/stream| SSE
+    AUTH -.verifica token.-> CLI
+    AUTH -.verifica token.-> API
+
+    %% ── Orquestación ─────────────────────────────
+    RUNPIPE --> STATE
+    RUNPIPE -->|1 genera contrato| CONTRACT
+    CONTRACT --> LLMC
+    CONTRACT --> CONTR
+
+    RUNPIPE -->|2 FASE 1 paralela<br/>asyncio.gather| RUNAGENT
+    RUNAGENT --> LLMC
+    RUNAGENT --> BBPY
+    LLMC -->|lee prompts| AGENTS
+
+    RUNAGENT -- A1 --> A1
+    RUNAGENT -- A2 --> A2
+    RUNAGENT -- A3 --> A3
+    RUNAGENT -- A4 --> A4
+    RUNAGENT -- A5 --> A5
+    RUNAGENT -- A6 --> A6
+
+    %% ── Quality Gate ──────────────────────────────
+    RUNPIPE -->|3 evalúa A1..A6| QG
+    QG --> A9
+    QG --> LLMC
+    QG --> EVALS
+    QG -- falla --> RUNAGENT
+    QG -. max 2 retries .-> EXC
+
+    %% ── Síntesis y One-Pager ──────────────────────
+    RUNPIPE -->|4 FASE 2 síntesis| RUNAGENT
+    RUNAGENT -- A7 --> A7
+    RUNPIPE -->|5 FASE 3 one-pager| RUNAGENT
+    RUNAGENT -- A8 --> A8
+
+    RUNPIPE -->|6 valida checklist| OPE
+    OPE --> A10
+    OPE --> LLMC
+    OPE --> ONEP
+    OPE -- falla --> RUNAGENT
+    OPE -. max 2 retries .-> EXC
+
+    %% ── Escrituras al blackboard ─────────────────
+    BBPY <--> RUNFILE
+    STATE <--> DSTATE
+    RUNAGENT --> OUTS
+    RUNPIPE --> SYNTH
+    RUNPIPE --> ONEP
+
+    %% ── Contexto a agentes ───────────────────────
+    CFG --> RUNAGENT
+    CFG --> QG
+    CFG --> OPE
+    TOOLS -.usadas por.-> A7
+
+    %% ── Observabilidad ───────────────────────────
+    RUNPIPE --> TRACE
+    RUNPIPE --> SSE
+    MCP -.expone blackboard y tools.-> LLMC
+
+    %% ── Estilos ──────────────────────────────────
+    classDef entry fill:#1e3a8a,stroke:#93c5fd,color:#fff
+    classDef orch  fill:#7c2d12,stroke:#fdba74,color:#fff
+    classDef agent fill:#064e3b,stroke:#6ee7b7,color:#fff
+    classDef bb    fill:#4c1d95,stroke:#c4b5fd,color:#fff
+    classDef cfg   fill:#374151,stroke:#9ca3af,color:#fff
+    classDef mcp   fill:#831843,stroke:#f9a8d4,color:#fff
+    classDef obs   fill:#0f766e,stroke:#5eead4,color:#fff
+
+    class CLI,API,AUTH entry
+    class RUNPIPE,RUNAGENT,LLMC,CONTRACT,QG,OPE,STATE,EXC orch
+    class A1,A2,A3,A4,A5,A6,A7,A8,A9,A10 agent
+    class BBPY,RUNFILE,DSTATE,OUTS,EVALS,SYNTH,ONEP,CONTR bb
+    class MAT,ANTI,ACC,PESOS,TOOLS cfg
+    class BBSRV,TOOLSRV,SBX,PII mcp
+    class TRACE,SSE obs
+
+
