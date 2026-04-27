@@ -5,3 +5,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
+# Teams bot — credenciales locales (nunca commitear)
+.env.teams
+
