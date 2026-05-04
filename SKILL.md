@@ -1,10 +1,10 @@
 # DiagnostiCore — InnoVerse Diagnóstico 360
 ### Sistema Agéntico de Diagnóstico de Transformación Digital
 
-**Versión:** 1.0
+**Versión:** 2.0 — Harness v3
 **Propietario:** InnoVerse Solutions
 **Clasificación:** Confidencial — Uso exclusivo del equipo InnoVerse
-**Última actualización:** 2026
+**Última actualización:** Mayo 2026
 
 ---
 
@@ -19,7 +19,7 @@
 7. [Framework DECA+](#7-framework-deca)
 8. [Cálculo del Índice de Deuda Digital (IDD)](#8-cálculo-del-índice-de-deuda-digital-idd)
 9. [Anti-Patrones Documentados](#9-anti-patrones-documentados)
-10. [Output Final: One-Pager de Diagnóstico](#10-output-final-one-pager-de-diagnóstico)
+10. [Entregables Finales](#10-entregables-finales)
 11. [Protocolo de Sesión de Síntesis Interna](#11-protocolo-de-sesión-de-síntesis-interna)
 12. [Reglas de Negocio Invariables](#12-reglas-de-negocio-invariables)
 13. [Glosario de Frameworks](#13-glosario-de-frameworks)
@@ -32,7 +32,7 @@
 
 **DiagnostiCore** es el sistema agéntico que automatiza y asiste la metodología de **Diagnóstico 360 de InnoVerse**: un análisis integral de seis dimensiones de transformación digital aplicado a organizaciones en Latinoamérica, con énfasis especial en PYMEs de México.
 
-El sistema convierte evidencia cruda — transcripciones de entrevistas, cuestionarios de madurez, auditorías técnicas, mapas de procesos, series financieras — en una **narrativa diagnóstica accionable** con causas raíz identificadas, impacto cuantificado, y un camino de transformación secuenciado.
+El sistema convierte evidencia cruda — transcripciones de entrevistas, cuestionarios de madurez, auditorías técnicas, mapas de procesos, series financieras — en **entregables ejecutivos accionables**: un One-Pager de una página para la dirección y un Reporte Completo de 8–12 páginas con trazabilidad de evidencia.
 
 ### 1.2 Principio rector
 
@@ -57,58 +57,74 @@ Este skill se invoca cuando el consultor necesita:
 - Asignar niveles de madurez (1–5) con justificación rigurosa por dimensión
 - Detectar patrones transversales y anti-patrones organizacionales
 - Calcular el Índice de Deuda Digital (IDD) y costo de inacción
-- Generar la narrativa diagnóstica y el One-Pager de entrega al cliente
+- Generar los entregables finales: One-Pager (A8) y Reporte Completo (A11)
 
 ---
 
 ## 2. Arquitectura del Sistema Agéntico
 
-### 2.1 Diagrama de componentes
+### 2.1 Diagrama de componentes (Harness v3)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                     ORQUESTADOR PRINCIPAL                           │
-│                   (DiagnostiCore Controller)                        │
-├───────────┬──────────────┬──────────────┬───────────────────────────┤
-│           │              │              │                           │
-▼           ▼              ▼              ▼                           ▼
-┌─────────┐ ┌────────────┐ ┌───────────┐ ┌─────────────┐ ┌─────────────┐
-│ Agent   │ │  Agent     │ │  Agent    │ │   Agent     │ │   Agent     │
-│Estrategia│ │ Liderazgo  │ │  Cultura  │ │  Procesos   │ │    Datos    │
-└─────────┘ └────────────┘ └───────────┘ └─────────────┘ └─────────────┘
-                                                              ▼
-                                                       ┌─────────────┐
-                                                       │   Agent     │
-                                                       │ Tecnología  │
-                                                       └─────────────┘
-        │              │              │              │              │
-        └──────────────┴──────────────┴──────────────┴──────────────┘
-                                      │
-                                      ▼
-                          ┌───────────────────────┐
-                          │   Agent Síntesis       │
-                          │  (Causal Analyst)      │
-                          └───────────────────────┘
-                                      │
-                                      ▼
-                          ┌───────────────────────┐
-                          │   Agent Output         │
-                          │  (One-Pager Writer)   │
-                          └───────────────────────┘
+│                     HARNESS v3 — ORQUESTADOR                        │
+│   SessionRunner + agent_runner.py + quality_gate.py                 │
+├───────────┬─────────────────────────────────────────────────────────┤
+│           │                                                          │
+▼           ▼                                                          │
+┌─────────────────┐                                                    │
+│ CB              │  Contract Builder — genera contrato pre-diagnóstico│
+│ Contract Builder│                                                    │
+└────────┬────────┘                                                    │
+         │ contrato del cliente                                        │
+         ▼                                                             │
+┌─────────────────────────────────────────────────────────────────────┤
+│         A1–A6  Análisis dimensional (paralelo)                       │
+│  Estrategia · Liderazgo · Cultura · Procesos · Datos · Tecnología    │
+└───────┬──────────────────────────────────────────────────────────────┘
+        │ output dimensional
+        ▼
+┌───────────────┐
+│  A9           │  Quality Gate — evalúa cada output dimensional
+│  Quality Gate │  PASS → continúa | FAIL → feedback → retry (máx 2×)
+└───────┬───────┘
+        │ outputs aprobados (×6)
+        ▼
+┌───────────────────────┐
+│   A7 — Motor de       │  Síntesis causal: causas raíz + IDD + DECA+
+│   Síntesis            │
+└──────────┬────────────┘
+           │
+     ──────┼──────────────────────────┐
+           ▼                          ▼
+┌──────────────────┐       ┌──────────────────────┐
+│  A8 — One Pager  │       │  A11 — Reporte        │
+│  1 página exec.  │       │  Completo 8–12 pág.   │
+└────────┬─────────┘       └──────────────────────┘
+         │
+         ▼
+┌──────────────────┐
+│  A10 — Onepager  │  Evaluador del One-Pager (checklist 8 criterios)
+│  Evaluator       │  PASS → entregable | FAIL → feedback → retry (2×)
+└──────────────────┘
 ```
 
 ### 2.2 Catálogo de agentes
 
-| ID | Nombre del Agente | Rol | Dimensión |
-|----|-------------------|-----|-----------|
-| A1 | `estrategia-agent` | Evalúa visión digital, roadmap, alineación estratégica | Estrategia y Modelos de Negocio |
-| A2 | `liderazgo-agent` | Evalúa liderazgo ejecutivo, estructura organizacional | Liderazgo y Organizaciones |
-| A3 | `cultura-agent` | Evalúa gestión del cambio, adopción, resistencia | Cultura y Gestión del Cambio |
-| A4 | `procesos-agent` | Evalúa backbone operacional, automatización, BPM | Procesos y Operaciones |
-| A5 | `datos-agent` | Evalúa gobernanza de datos, analítica, BI | Datos, Analítica e BI |
-| A6 | `tecnologia-agent` | Evalúa stack tecnológico, deuda técnica, arquitectura | Tecnología y Arquitectura Digital |
-| A7 | `sintesis-agent` | Identifica causas raíz, patrones transversales, IDD | Análisis integrado |
-| A8 | `output-agent` | Genera narrativa diagnóstica y One-Pager final | Entregable al cliente |
+| ID | Nombre | Rol | Momento en pipeline |
+|----|--------|-----|---------------------|
+| CB | Contract Builder | Genera contrato específico del cliente (dimensiones prioritarias, anti-patrones esperados, criterios de aceptación) | Antes de A1–A6 |
+| A1 | `estrategia-agent` | Evalúa visión digital, roadmap, alineación estratégica | Paralelo con A2–A6 |
+| A2 | `liderazgo-agent` | Evalúa liderazgo ejecutivo, estructura organizacional | Paralelo con A1, A3–A6 |
+| A3 | `cultura-agent` | Evalúa gestión del cambio, adopción, resistencia | Paralelo con A1–A2, A4–A6 |
+| A4 | `procesos-agent` | Evalúa backbone operacional, automatización | Paralelo con A1–A3, A5–A6 |
+| A5 | `datos-agent` | Evalúa gobernanza de datos, analítica, BI | Paralelo con A1–A4, A6 |
+| A6 | `tecnologia-agent` | Evalúa stack tecnológico, deuda técnica, arquitectura | Paralelo con A1–A5 |
+| A9 | Quality Gate | Evalúa output de cada A1–A6 contra criterios del contrato | Después de cada agente dimensional |
+| A7 | `sintesis-agent` | Identifica causas raíz, patrones transversales, IDD | Después de A9 × 6 |
+| A8 | `output-agent` | Genera One-Pager ejecutivo (6 bloques, 1 página) | Paralelo con A11 |
+| A11 | `reporte-completo-agent` | Genera Reporte Completo (9 secciones, 8–12 páginas) | Paralelo con A8 |
+| A10 | Onepager Evaluator | Valida el One-Pager contra checklist de 8 criterios | Después de A8 |
 
 ### 2.3 Herramientas disponibles para todos los agentes
 
@@ -120,7 +136,23 @@ Este skill se invoca cuando el consultor necesita:
 | `cuantificar_costo_inaccion()` | Estima costo mensual y anual del status quo |
 | `traducir_a_negocio()` | Convierte hallazgos técnicos a lenguaje ejecutivo |
 | `validar_causalidad()` | Aplica lógica contrafáctica para separar síntomas de causas |
-| `generar_one_pager()` | Ensambla el entregable final en formato One-Pager |
+
+### 2.4 Infraestructura Harness v3
+
+El sistema corre sobre **Claude Managed Agents** (beta `managed-agents-2026-04-01`). Cada agente es un objeto persistente en la nube con su propio system prompt y versión fija.
+
+| Componente | Descripción |
+|------------|-------------|
+| `managed_agent_setup.py` | Setup único (run una vez por entorno): crea 12 Agent objects en la nube (A1–A11 + CB). Escribe `config/managed_agents_config.json` |
+| `session_runner.py` | Ejecuta sesiones per-run con SSE streaming. Un session por agente por diagnóstico |
+| `agent_runner.py` | Orquesta el pipeline A1→A11 vía `asyncio.to_thread(runner.run_agent_session, ...)` |
+| `quality_gate.py` | Invoca A9 después de cada dimensional. Maneja retry (máx 2×) y escalado a humano |
+| `onepager_evaluator.py` | Invoca A10 después de A8. Mismo patrón de retry |
+| `contract_builder.py` | Invoca CB antes de A1–A6 |
+| `api/app.py` | FastAPI REST + SSE. Endpoints: `POST /runs`, `POST /runs/{id}/pipeline`, `GET /runs/{id}/stream`, `GET /runs/{id}/report` |
+| `teams_bot/` | Bot de Microsoft Teams (aiohttp + Bot Framework SDK). Integra con la API REST |
+
+**Nota:** `orchestrator/llm_client.py` existe por compatibilidad con `api/app.py` pero está marcado LEGACY. Toda lógica nueva usa `SessionRunner`.
 
 ---
 
@@ -138,41 +170,96 @@ INICIO
   • Series de tiempo financieras (36 meses)
   │
   ▼
-[PASO 1] Análisis dimensional paralelo
-  Lanza A1–A6 simultáneamente
+[PASO 0] Construcción del contrato (CB)
+  El Contract Builder genera un contrato específico del cliente:
+    a) Identifica dimensiones prioritarias según la evidencia disponible
+    b) Predice anti-patrones más probables dado el sector y tamaño
+    c) Define criterios de calidad esperados para los outputs dimensionales
+    d) Establece condiciones de éxito del diagnóstico
+  El contrato se guarda en blackboard/contracts/ y se pasa a A1–A6 como contexto adicional
+  │
+  ▼
+[PASO 1] Análisis dimensional paralelo (A1–A6)
+  Cada agente recibe: evidencia de su dimensión + contrato del cliente
   Cada agente:
     a) Lee la evidencia de su dimensión
     b) Aplica sus preguntas analíticas (mínimo 12)
     c) Asigna nivel de madurez 1–5 con justificación
-    d) Lista 3 hallazgos principales con evidencia
+    d) Lista hallazgos principales con evidencia
     e) Detecta anti-patrones aplicables
     f) Traduce a lenguaje de negocio
   │
   ▼
+[PASO 1.5] Quality Gate dimensional (A9 — por cada A1–A6)
+  Evalúa el output contra:
+    • Escala de madurez (config/maturity_scales.json)
+    • Catálogo de anti-patrones (config/antipatterns.json)
+    • Criterios del contrato del cliente
+  PASS (score ≥ 70): output aprobado, continúa
+  FAIL: genera feedback detallado → el agente dimensional hace retry (máx 2×)
+  FAIL tras 2 retries: escala a humano, bloquea el pipeline
+  │
+  ▼
 [PASO 2] Sesión de síntesis (A7)
-  a) Recibe outputs de A1–A6
-  b) Identifica patrones transversales
-  c) Aplica árbol de causalidad
-  d) Formula máximo 3 causas raíz
-  e) Calcula IDD ponderado
-  f) Cuantifica costo de inacción (Cost of Delay)
-  g) Diseña camino de transformación en 3 fases DECA+
+  Recibe los 6 outputs dimensionales aprobados por A9
+    a) Identifica patrones transversales
+    b) Aplica árbol de causalidad
+    c) Formula máximo 3 causas raíz (con test contrafáctico)
+    d) Calcula IDD ponderado
+    e) Cuantifica costo de inacción (Cost of Delay)
+    f) Diseña camino de transformación en 3 fases DECA+
+    g) Genera narrativa interna (uso del consultor, no se entrega al cliente)
+  │
+  ┌─────────────────────────────┐
+  ▼                             ▼
+[PASO 3A] One-Pager (A8)    [PASO 3B] Reporte Completo (A11)
+  • Input: output de A7         • Input: output de A7 + outputs A1–A6
+  • 6 bloques, 1 página         • 9 secciones, 8–12 páginas
+  • Lenguaje ejecutivo          • Lenguaje de negocio con evidencia
+  (ejecutan en paralelo)
   │
   ▼
-[PASO 3] Generación de output (A8)
-  a) Ensambla narrativa diagnóstica (máx. 1 página)
-  b) Genera One-Pager completo con 5 secciones
-  c) Aplica verificación anti-jerga técnica
-  d) Valida conservadurismo de estimaciones de ROI
+[PASO 4] Evaluación del One-Pager (A10)
+  Valida A8 contra checklist de 8 criterios de aceptación
+  PASS: One-Pager aprobado → ENTREGABLE
+  FAIL: genera feedback → A8 hace retry (máx 2×)
   │
   ▼
-[OUTPUT] One-Pager de Diagnóstico + Narrativa interna
+[OUTPUT]
+  • ONE-PAGER APROBADO (A8 → validado por A10)
+  • REPORTE COMPLETO (A11 — sin quality gate, sale en paralelo)
 FIN
 ```
 
 ---
 
 ## 4. Sub-Agentes — Especificaciones Detalladas
+
+---
+
+### CB — Contract Builder
+
+**Rol:** Generador de contrato pre-diagnóstico
+**Momento:** Antes de lanzar A1–A6. Input: información del cliente + evidencia disponible + catálogo de anti-patrones.
+
+El contrato personaliza el diagnóstico: define qué dimensiones son críticas para este cliente específico, qué anti-patrones buscar con más atención, y qué criterios de calidad aplican a sus outputs dimensionales.
+
+**Output JSON requerido:**
+```json
+{
+  "diagnostico_id": "DX-AAAA-NNN",
+  "cliente": { "nombre": "...", "sector": "...", "tamaño": "..." },
+  "dimensiones_prioritarias": ["estrategia", "cultura"],
+  "antipatrones_prioritarios": ["director_orquesta", "excel_sagrado"],
+  "criterios_calidad_dimensional": {
+    "A1_estrategia": "Justificar con evidencia de roadmap o su ausencia",
+    "A2_liderazgo": "Identificar si hay desafío técnico o adaptativo"
+  },
+  "condiciones_exito": ["Al menos 2 fuentes de evidencia por dimensión"]
+}
+```
+
+**Regla:** Si el CB no puede generar el contrato por falta de evidencia, bloquea el pipeline e indica exactamente qué información se necesita.
 
 ---
 
@@ -554,6 +641,35 @@ OUTPUT REQUERIDO (formato JSON):
 
 ---
 
+### A9 — Quality Gate
+
+**Rol:** Evaluador de outputs dimensionales
+**Momento:** Después de cada A1–A6, antes de A7.
+
+Evalúa si el output de un agente dimensional cumple los criterios de calidad del diagnóstico. No re-analiza la evidencia — evalúa si el **análisis ya hecho** es riguroso, específico y trazable.
+
+**Criterios de evaluación:**
+- El nivel de madurez está respaldado por al menos 2 fuentes de evidencia distintas
+- Los hallazgos son observables y específicos (no genéricos)
+- Los anti-patrones detectados tienen evidencia concreta
+- La traducción al lenguaje de negocio no contiene jerga técnica
+- El output cumple los criterios específicos del contrato del cliente
+
+**Output JSON requerido:**
+```json
+{
+  "aprobado": true,
+  "puntuacion": 85,
+  "hallazgos": ["Hallazgo que debería reforzarse"],
+  "feedback": "Descripción detallada de qué mejorar si no aprobó"
+}
+```
+
+**Regla de aprobación:** `puntuacion >= 70` → PASS. Bajo 70 → FAIL con feedback.
+**Retry máximo:** 2. Tras el segundo FAIL, el pipeline escala a humano y se detiene.
+
+---
+
 ### A7 — `sintesis-agent`
 
 **Rol:** Causal Analyst — De seis análisis a una narrativa cohesiva
@@ -604,88 +720,122 @@ ERRORES QUE DEBES EVITAR ACTIVAMENTE:
 OUTPUT REQUERIDO (formato JSON):
 {
   "scores_por_dimension": {
-    "estrategia": [1-5],
-    "liderazgo": [1-5],
-    "cultura": [1-5],
-    "procesos": [1-5],
-    "datos": [1-5],
-    "tecnologia": [1-5]
+    "estrategia": [1-5], "liderazgo": [1-5], "cultura": [1-5],
+    "procesos": [1-5], "datos": [1-5], "tecnologia": [1-5]
   },
   "idd": [0-100],
   "patrones_transversales": ["patrón_1", "patrón_2"],
   "causas_raiz": [
-    { "nombre": "máx 5 palabras", "descripcion": "lenguaje de negocio", "evidencia": ["ev1", "ev2", "ev3"] },
-    { "nombre": "...", "descripcion": "...", "evidencia": ["..."] },
-    { "nombre": "...", "descripcion": "...", "evidencia": ["..."] }
+    { "nombre": "máx 5 palabras", "descripcion": "lenguaje de negocio",
+      "evidencia": ["ev1", "ev2", "ev3"], "dimension_origen": "estrategia|liderazgo|cultura|procesos|datos|tecnologia" }
   ],
   "costo_inaccion_mensual": "$[XX,XXX] MXN",
   "costo_inaccion_anual": "$[XXX,XXX] MXN",
-  "fundamento_costo": "[Desglose de cómo se calculó: qué procesos, áreas, márgenes]",
+  "fundamento_costo": "[Desglose: qué procesos, áreas, márgenes]",
   "camino_transformacion": {
-    "fase_1_dolor": { "nombre": "...", "descripcion": "...", "semanas": 0 },
+    "fase_1_dolor":     { "nombre": "...", "descripcion": "...", "semanas": 0 },
     "fase_2_evidencia": { "nombre": "...", "descripcion": "...", "semanas": 0 },
     "fase_3_autonomia": { "nombre": "...", "descripcion": "...", "semanas": 0 }
   },
-  "narrativa_interna": "[Párrafo de máx 200 palabras: cómo llegó la empresa a donde está, qué la mantiene ahí, qué está en riesgo]"
+  "narrativa_interna": "[Máx 200 palabras: cómo llegó la empresa a donde está, qué la mantiene ahí, qué está en riesgo]"
 }
 ```
 
 ---
 
-### A8 — `output-agent`
+### A8 — `output-agent` (One-Pager)
 
-**Rol:** One-Pager Writer — Genera el entregable final al cliente
+**Rol:** Genera el One-Pager ejecutivo de una página para entrega al cliente.
+**Input:** Output de A7 exclusivamente. No re-analiza evidencia cruda.
+**Paralelo con:** A11.
 
-#### Prompt del agente
+#### Estructura de los 6 bloques
 
-```
-Eres el especialista en comunicación ejecutiva de InnoVerse.
+**Bloque 1 — Situación Actual** (60–80 palabras)
+Descripción específica e irrepetible de la empresa. Test: si puedes copiar este párrafo a otro cliente sin cambiarlo, reescribe entero.
 
-Recibes el output del sintesis-agent y generas el One-Pager de Diagnóstico
-que se entrega al cliente.
+**Bloque 2 — Lo Que Encontramos** (exactamente 3 bullets)
+Formato: `[Situación observable] → [consecuencia cuantificada en términos de negocio]`
 
-ESTRUCTURA OBLIGATORIA del One-Pager (5 secciones):
+**IDD y Perfil de Madurez**
+Score global + 6 scores dimensionales en tabla.
 
-01. SITUACIÓN ACTUAL
-Descripción específica de la empresa: qué hace, cuánto tiempo lleva,
-cuál es el síntoma principal que motivó el diagnóstico, y una frase de contexto
-que dé escala al problema. Este párrafo debe ser COMPLETAMENTE ESPECÍFICO a esta empresa
-— no puede copiarse a ningún otro cliente.
+**Bloque 3 — Las Tres Causas Raíz** (máx. 40 palabras por causa)
+Nombres exactos del Motor de Síntesis. Sin variaciones.
 
-02. LO QUE ENCONTRAMOS
-Tres observaciones en formato:
-→ [Situación observable] → [consecuencia cuantificada o cualificada en términos de negocio]
+**Bloque 4 — El Costo de No Actuar** (estructura prescrita)
+IDD + Cost of Delay mensual + anual + origen del número.
 
-03. LAS TRES CAUSAS RAÍZ
-Para cada causa raíz (máx. 3):
-- Nombre: máximo 5 palabras
-- Explicación en lenguaje de negocio: qué es, cómo se manifiesta, por qué limita a la organización
+**Bloque 5 — El Camino de Transformación** (80–100 palabras)
+3 fases DECA+ con nombres, qué resuelven y horizonte total.
 
-04. EL COSTO DE NO ACTUAR
-- IDD: [##] de 100 puntos
-- Perfil de madurez por dimensión (barras 1–5)
-- Costo mensual de no actuar: $[XX,XXX]
-- Costo anual: $[XXX,XXX]
-- Desglose de dónde vienen los números (específico al modelo de negocio)
+**Bloque 6 — La Ruta Propuesta** (dos tablas)
+- Tabla A: Lo que InnoVerse construye contigo (iniciativas Cat. A del backlog DECA+)
+- Tabla B: Lo que tu organización debe resolver (iniciativas Cat. B y C)
+- Condición de arranque (solo si existe Cat. C)
+- Portafolio InnoVerse permitido: DataReady Assessment, System Technical Advisory, First Intelligence Project, Intelligent Data Platform
 
-05. EL CAMINO DE TRANSFORMACIÓN
-- FASE 1 DOLOR: [Nombre] — [Qué resuelve y en cuántas semanas]
-- FASE 2 EVIDENCIA: [Nombre] — [Qué construye y qué capacidad instala]
-- FASE 3 AUTONOMÍA: [Nombre] — [Qué deja instalado permanentemente]
-Al finalizar las tres fases: [Cliente] contará con [Capacidad 1], [Capacidad 2] y [Capacidad 3].
-Horizonte: [N] meses.
-
-VERIFICACIÓN ANTI-JERGA (aplica antes de entregar):
+**Verificación anti-jerga (aplica antes de entregar):**
 ✗ No menciones: MIT CISR, ADKAR, DAMA-DMBOK, BPMM, Hype Cycle, Heifetz, Kotter
-✗ No uses: "nivel de madurez X", "framework Y", "modelo Z"
 ✗ No uses: "backbone operacional", "hyperautomation", "cloud-native", "data governance"
 ✓ Usa: lenguaje de resultados de negocio, impacto en clientes, margen, velocidad, riesgo
 
-VERIFICACIÓN DE CONSERVADURISMO en ROI:
-- Reducción de costo proyectada × 70%
-- Aumento de revenue proyectado × 50%
-- Mitigación de riesgo: reportar como escenario (si actúa / si no actúa)
+---
+
+### A10 — Onepager Evaluator
+
+**Rol:** Evalúa el One-Pager (A8) contra el checklist de 8 criterios de aceptación.
+**Momento:** Después de A8, antes de declarar el One-Pager como entregable.
+
+**Los 8 criterios de aceptación** (de `config/acceptance_criteria.json`):
+
+1. **Especificidad** — La Situación Actual no puede copiarse a ningún otro cliente
+2. **Causalidad verificable** — Las tres causas raíz explican los síntomas del Bloque 2 (test contrafáctico)
+3. **Urgencia cuantificada** — Bloque 4 tiene IDD + Cost of Delay mensual + anual + origen del número
+4. **Lenguaje limpio** — Sin nombres de frameworks, abreviaturas técnicas sin traducción, ni frases de marketing
+5. **Reconocimiento** — Un director sin conocimiento de la metodología lo lee en 3 minutos y dice "así somos"
+6. **Ruta clara** — Bloque 6 distingue con precisión qué ejecuta InnoVerse y qué debe resolver el cliente
+7. **Portafolio correcto** — Solo aparecen productos reales del portafolio InnoVerse actual
+8. **Condición de arranque** — Presente si existe iniciativa Categoría C en el backlog
+
+**Output JSON requerido:**
+```json
+{
+  "aprobado": true,
+  "puntuacion": 92,
+  "criterios_fallidos": [],
+  "feedback": ""
+}
 ```
+
+**Regla:** Si algún criterio falla, `aprobado: false` + feedback detallado por criterio fallido.
+**Retry máximo:** 2. Tras el segundo FAIL, el One-Pager se entrega con nota de revisión pendiente.
+
+---
+
+### A11 — `reporte-completo-agent`
+
+**Rol:** Genera el Reporte Completo de 8–12 páginas para presentación detallada al cliente.
+**Input:** Output de A7 (síntesis) + outputs de A1–A6 (análisis dimensional).
+**Paralelo con:** A8. Sin quality gate propio.
+
+A diferencia del One-Pager (destilación), el Reporte Completo es **expansión con rigor**: cada hallazgo tiene su evidencia de origen trazable al agente dimensional que lo produjo.
+
+**Las 9 secciones:**
+
+| Sección | Contenido | Límite |
+|---------|-----------|--------|
+| 1. Resumen Ejecutivo | Contexto, hallazgos clave, camino — 3 párrafos | 150–200 palabras |
+| 2. Contexto del Diagnóstico | Quién es el cliente, qué motivó el diagnóstico, qué se evaluó | 120–150 palabras |
+| 3. Perfil de Madurez Digital | Tabla IDD + 6 scores + alerta por dimensión + interpretación | Tabla + 80–100 palabras |
+| 4. Análisis por Dimensión | Una subsección por A1–A6: hallazgos, anti-patrones, alerta | 100–130 palabras por dimensión |
+| 5. Patrones Transversales | Cómo las dimensiones se conectan causalmente | 120–160 palabras |
+| 6. Las Tres Causas Raíz | Tratamiento completo con evidencia + test contrafáctico explícito | 120–150 palabras por causa |
+| 7. El Costo de No Actuar | Tabla de desglose por fuente + IDD + conservadurismo | Tabla prescrita |
+| 8. El Camino de Transformación | Tabla de fases + lógica de la secuencia + capacidades finales | 200–250 palabras |
+| 9. La Ruta Propuesta | Mismas dos tablas que Bloque 6 del One-Pager (Categoría A / B / C) | Dos tablas |
+
+**Auditoría de completitud (9 filtros):** Especificidad, Trazabilidad, Causalidad, Números con origen, Lenguaje limpio, Portafolio correcto, Consistencia de nombres, Longitud (8–12 páginas), Audiencia correcta (gerencial operativo, no consultor).
 
 ---
 
@@ -695,7 +845,7 @@ VERIFICACIÓN DE CONSERVADURISMO en ROI:
 Recibe el nombre de la dimensión y un array de evidencias. Retorna nivel 1–5 y justificación. Requiere evidencia de múltiples fuentes (entrevistas + datos operacionales + auditoría de sistemas). No asignar nivel por respuesta única de cuestionario.
 
 ### `detectar_antipatron(evidencias)`
-Recibe evidencias y retorna lista de anti-patrones identificados (ver Sección 9).
+Recibe evidencias y retorna lista de anti-patrones identificados (ver Sección 9). Implementado en `tools/detectar_antipatron.py`.
 
 ### `calcular_idd(scores)`
 ```
@@ -708,6 +858,8 @@ IDD = 100 - promedio_ponderado(
   (5 - score_tecnologia)  × 10%
 ) × 25
 ```
+
+Implementado en `tools/calcular_idd.py`.
 
 **Pesos por dimensión:**
 
@@ -725,6 +877,8 @@ Identifica tres tipos de ROI:
 - **Reducción de costo:** eficiencias operacionales medibles (× 0.70)
 - **Aumento de revenue:** nuevas capacidades comerciales (× 0.50)
 - **Mitigación de riesgo:** pérdida de clientes, regulación, vulnerabilidad operacional (escenario)
+
+Implementado en `tools/cuantificar_costo.py`.
 
 ### `traducir_a_negocio(hallazgo_tecnico, impacto_financiero)`
 Transforma jerga técnica en lenguaje ejecutivo. Ejemplo:
@@ -774,11 +928,19 @@ DOLOR  →  EVIDENCIA  →  CAPACIDAD  →  AUTONOMÍA
 
 > Si comienzas por Autonomía sin resolver primero el Dolor, el equipo pierde atención y el proyecto fracasa.
 
+**Backlog DECA+ — Categorías:**
+
+| Categoría | Quién ejecuta | Cuándo |
+|-----------|---------------|--------|
+| **A** | InnoVerse (con el cliente) | En las 3 fases del camino de transformación |
+| **B** | El cliente (con guía de InnoVerse) | En paralelo o antes de las fases InnoVerse |
+| **C** | El cliente (requisito previo) | Debe resolverse ANTES de iniciar el producto InnoVerse correspondiente |
+
 ---
 
 ## 8. Cálculo del Índice de Deuda Digital (IDD)
 
-El IDD es la puntuación central del One-Pager. Escala 0–100 donde:
+El IDD es la puntuación central del diagnóstico. Escala 0–100 donde:
 - **0** = Deuda digital máxima (sin capacidad digital)
 - **100** = Sin deuda digital (organización completamente digital)
 
@@ -804,7 +966,7 @@ IDD = 100 - Σ(deuda_i × peso_i)
 
 ## 9. Anti-Patrones Documentados
 
-InnoVerse ha documentado 7 anti-patrones que aparecen en >70% de los diagnósticos. Los agentes deben detectarlos activamente.
+InnoVerse ha documentado 7 anti-patrones que aparecen en >70% de los diagnósticos. Los agentes deben detectarlos activamente. Catálogo completo en `config/antipatterns.json` (v2.0).
 
 ### Patrón 1 — El Excel Sagrado
 Información crítica del negocio reside en spreadsheets personales en laptops individuales o servidores ad-hoc sin backup. **Presencia:** >80% de diagnósticos. **Raíz:** gobernanza de datos + cultura de transparencia. **No es** un problema de tecnología.
@@ -829,11 +991,11 @@ Múltiples proyectos digitales corriendo simultáneamente sin coordinación estr
 
 ---
 
-## 10. Output Final: One-Pager de Diagnóstico
+## 10. Entregables Finales
 
-El One-Pager es el único entregable visible al cliente. Debe cumplir estándares de calidad antes de entregarse.
+### 10.1 One-Pager (A8 → validado por A10)
 
-### Estructura requerida
+El One-Pager es el entregable primario visible al cliente. Se lee en 3 minutos antes de una reunión de cierre. Estándar de calidad: el director lo lee y dice "Así es exactamente. Vieron lo que nadie más había visto."
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -849,55 +1011,71 @@ El One-Pager es el único entregable visible al cliente. Debe cumplir estándare
 │  → [Observación 2] → [consecuencia cualificada de negocio]      │
 │  → [Observación 3] → [consecuencia cuantificada]                │
 ├────────────────────┬────────────────────────────────────────────┤
-│  [##]              │  PERFIL DE MADUREZ POR DIMENSIÓN           │
-│  ÍNDICE DE DEUDA   │  Estrategia ■■□□□ 2/5                      │
+│  [##]              │  Estrategia ■■□□□ 2/5                      │
+│  ÍNDICE DE DEUDA   │  Liderazgo  ■■□□□ 2/5                      │
 │  DIGITAL           │  Cultura    ■□□□□ 1/5                      │
-│  de 100 puntos     │  Liderazgo  ■■□□□ 2/5                      │
-│                    │  Procesos   ■■□□□ 2/5                      │
+│  de 100 puntos     │  Procesos   ■■□□□ 2/5                      │
 │                    │  Datos      ■□□□□ 1/5                      │
 │                    │  Tecnología ■■■□□ 3/5                      │
 ├─────────────────────────────────────────────────────────────────┤
 │  03. LAS TRES CAUSAS RAÍZ                                       │
-│  1 [NOMBRE CAUSA RAÍZ 1 — máx 5 palabras]                      │
-│    [Explicación en lenguaje de negocio]                         │
-│  2 [NOMBRE CAUSA RAÍZ 2]                                        │
-│    [Explicación]                                                │
-│  3 [NOMBRE CAUSA RAÍZ 3]                                        │
-│    [Explicación]                                                │
+│  1 [NOMBRE — máx 5 palabras]: [Explicación negocio]             │
+│  2 [NOMBRE]: [Explicación]                                      │
+│  3 [NOMBRE]: [Explicación]                                      │
 ├────────────────────┬────────────────────────────────────────────┤
-│  $[XX,XXX]         │  ¿DE DÓNDE VIENE ESTE NÚMERO?              │
-│  COSTO MENSUAL     │  [Desglose específico al modelo de negocio] │
+│  $[XX,XXX]         │  Origen: [desglose específico]             │
+│  COSTO MENSUAL     │                                            │
 │  DE NO ACTUAR      │                                            │
 │  $[XXX,XXX] / año  │                                            │
 ├─────────────────────────────────────────────────────────────────┤
 │  05. EL CAMINO DE TRANSFORMACIÓN                                │
-│  FASE 1 DOLOR     │ [Nombre iniciativa] — [Qué resuelve]        │
-│  FASE 2 EVIDENCIA │ [Nombre iniciativa] — [Qué construye]       │
-│  FASE 3 AUTONOMÍA │ [Nombre iniciativa] — [Qué deja instalado]  │
-│                                                                 │
-│  Al finalizar, [CLIENTE] contará con [Cap. 1], [Cap. 2] y      │
-│  [Cap. 3]. Horizonte: [N] meses.                               │
+│  FASE 1 DOLOR     │ [Nombre] — [Qué resuelve | semanas]         │
+│  FASE 2 EVIDENCIA │ [Nombre] — [Qué construye]                  │
+│  FASE 3 AUTONOMÍA │ [Nombre] — [Qué deja instalado]             │
+│  Horizonte: [N] meses.                                          │
 ├─────────────────────────────────────────────────────────────────┤
-│  InnoVerse Solutions | Diagnóstico 360    Confidencial          │
+│  06. LA RUTA PROPUESTA                                          │
+│  LO QUE INNOVERSE CONSTRUYE CONTIGO                             │
+│  | Qué construimos | Producto | Horizonte |                     │
+│  LO QUE TU ORGANIZACIÓN DEBE RESOLVER                           │
+│  | Qué debes resolver | Por qué | Riesgo si no |                │
+│  [Condición de arranque si existe Cat. C]                       │
+├─────────────────────────────────────────────────────────────────┤
+│  The door to success. — InnoVerse Solutions    Confidencial      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Checklist de calidad antes de entregar
+**Checklist A10 (8 criterios — todos deben cumplirse):**
+- [ ] Situación Actual no puede copiarse a ningún otro cliente
+- [ ] Causas raíz pasan el test contrafáctico (causalidad verificable)
+- [ ] Bloque 4 tiene IDD + Cost of Delay mensual + anual + origen del número
+- [ ] Sin nombres de frameworks, abreviaturas técnicas sin traducción, ni frases de marketing
+- [ ] Director sin conocimiento de metodología lo lee en 3 min y dice "así somos"
+- [ ] Bloque 6 distingue con precisión qué ejecuta InnoVerse y qué debe resolver el cliente
+- [ ] Solo aparecen productos reales del portafolio InnoVerse actual en la tabla A
+- [ ] Condición de arranque presente si existe iniciativa Cat. C
 
-- [ ] La "Situación Actual" no puede copiarse a ningún otro cliente
-- [ ] Las tres causas raíz tienen nombre ≤5 palabras
-- [ ] El costo de no actuar tiene desglose específico (no genérico)
-- [ ] No aparece ningún nombre de framework en el texto
-- [ ] Los estimados de ROI aplicaron factores de conservadurismo
-- [ ] El perfil de madurez tiene barras visuales (■□) por dimensión
-- [ ] El horizonte de transformación tiene número de meses específico
-- [ ] Toda la información cabe en una sola página
+### 10.2 Reporte Completo (A11)
+
+El Reporte Completo es el documento de referencia para el equipo directivo y operativo del cliente. Se presenta en la semana posterior a la reunión de cierre. 8–12 páginas con trazabilidad completa de evidencia.
+
+**Diferencias clave vs. One-Pager:**
+
+| Aspecto | One-Pager (A8) | Reporte Completo (A11) |
+|---------|----------------|------------------------|
+| Input | Solo A7 síntesis | A7 síntesis + A1–A6 dimensionales |
+| Extensión | 1 página | 8–12 páginas |
+| Audiencia | Dirección (3 min) | Dirección + operaciones (60–90 min) |
+| Hallazgos | Destilados | Con evidencia de origen |
+| Causalidad | Enunciada | Con test contrafáctico explícito |
+| Quality gate | A10 (8 criterios) | Sin quality gate |
+| Paralelo con | A11 | A8 |
 
 ---
 
 ## 11. Protocolo de Sesión de Síntesis Interna
 
-La sesión de síntesis interna ocurre después de que los agentes A1–A6 completan sus análisis. Dura 2–3 horas en formato humano (o se simula en el sistema agéntico).
+La sesión de síntesis interna ocurre después de que los agentes A1–A6 completan sus análisis y son aprobados por A9.
 
 ### Protocolo de 4 pasos
 
@@ -935,16 +1113,26 @@ Estas reglas no pueden ser ignoradas por ningún agente bajo ninguna circunstanc
 
 6. **La Resistencia Silenciosa no se detecta con cuestionarios.** Solo con observación etnográfica de flujo de trabajo.
 
-7. **El One-Pager debe ser completamente único para cada cliente.** Ninguna sección puede copiarse entre diagnósticos.
+7. **Los entregables deben ser completamente únicos para cada cliente.** Ninguna sección puede copiarse entre diagnósticos.
 
-8. **El diagnóstico determina el punto de entrada a la metodología InnoVerse:**
-   - Procesos informales + datos débiles → Data Engineering primero
-   - Arquitectura sólida pero sin inteligencia → Business Intelligence primero
-   - Ambas cosas maduras → ML & AI directo
+8. **CB es obligatorio antes de lanzar A1–A6.** El contrato personaliza el diagnóstico. Sin contrato no hay pipeline.
 
-9. **Nunca sobreprometer ROI.** Es mejor sorprender al alza que desilusionar.
+9. **A9 es obligatorio después de cada agente dimensional.** No se salta el quality gate. FAIL tras 2 retries = escala a humano.
 
-10. **Toda estimación financiera incluye su desglose de origen** (qué proceso, qué área, qué margen).
+10. **A10 es obligatorio antes de entregar el One-Pager.** El One-Pager no se entrega al cliente sin aprobación de A10.
+
+11. **A11 corre en paralelo con A8.** Ambos reciben la síntesis de A7. A11 también usa los outputs A1–A6.
+
+12. **El diagnóstico determina el punto de entrada a la metodología InnoVerse:**
+    - Procesos informales + datos débiles → Data Engineering primero
+    - Arquitectura sólida pero sin inteligencia → Business Intelligence primero
+    - Ambas cosas maduras → ML & AI directo
+
+13. **Nunca sobreprometer ROI.** Es mejor sorprender al alza que desilusionar.
+
+14. **Toda estimación financiera incluye su desglose de origen** (qué proceso, qué área, qué margen).
+
+15. **El Bloque 6 y la Sección 9 del Reporte solo incluyen productos del portafolio InnoVerse actual:** DataReady Assessment, System Technical Advisory, First Intelligence Project, Intelligent Data Platform.
 
 ---
 
@@ -960,7 +1148,7 @@ Referencia interna para consultores. Nunca compartir con clientes.
 | BPM/BPMM | OMG & CMMI | 2008–2025 | Procesos | Madurez de gestión de procesos: Inicial → Gestionado → Optimizado. |
 | Business Model Canvas | Osterwalder & Pigneur | 2010 | Estrategia | 9 bloques para modelar propuesta de valor. |
 | DAMA-DMBOK 3.0 | DAMA International | 2025 | Datos | 11 dominios de gestión de datos. Incluye gobernanza de IA. |
-| DECA+ | InnoVerse | 2024–2025 | Transformación | Marco propio: Dolor → Evidencia → Capacidad → Autonomía. |
+| DECA+ | InnoVerse | 2024–2025 | Transformación | Marco propio: Dolor → Evidencia → Capacidad → Autonomía. Backlog en categorías A/B/C. |
 | Designed for Digital | MIT CISR | 2019 | Transformación | 5 componentes: Customer Knowledge, Operational Backbone, Digital Platform, Accountability, External Developers. |
 | Dynamic Capabilities | Teece, D. | 2007–2025 | Estrategia | Cómo empresas crean ventaja competitiva mediante capacidades dinámicas. |
 | Gartner Hype Cycle | Gartner | 1995–2025 | Tecnología | Curva de adopción: Innovation Trigger → Peak Hype → Trough → Slope → Plateau. |
@@ -977,10 +1165,22 @@ Referencia interna para consultores. Nunca compartir con clientes.
 
 ## Notas de versión
 
-**v1.0 (2026)** — Primera versión del sistema agéntico DiagnostiCore. Basada en el Book de Diagnóstico 360 de InnoVerse Solutions v1.0 (2025) y el template de One-Pager v1 (Marzo 2026). Incluye los 8 sub-agentes, 7 herramientas compartidas, escala 1–5 para 6 dimensiones, 7 anti-patrones documentados y protocolo completo de síntesis interna.
+**v2.0 (Mayo 2026) — Harness v3**
+- Migración completa a **Claude Managed Agents**: 12 Agent objects persistentes (A1–A11 + CB). `SessionRunner` reemplaza `AsyncLLMClient` en todo el pipeline.
+- **CB — Contract Builder**: nuevo agente pre-pipeline que genera el contrato de diagnóstico personalizado por cliente.
+- **A9 — Quality Gate**: nuevo agente evaluador ejecutado después de cada A1–A6. Retry hasta 2× con escalado a humano.
+- **A10 — Onepager Evaluator**: nuevo agente evaluador del One-Pager contra checklist de 8 criterios.
+- **A11 — Reporte Completo**: nuevo agente que genera 8–12 páginas en paralelo con A8. Usa A7 + A1–A6 como input.
+- **A8 actualizado**: Bloque 6 (La Ruta Propuesta) agregado con dos tablas DECA+ y condición de arranque. 6 filtros de test de reconocimiento (vs. 5 en v1.0).
+- **Sección 10**: actualizada para incluir ambos entregables (One-Pager + Reporte Completo), checklist A10, y tabla comparativa.
+- **Sección 12**: 15 reglas de negocio (vs. 10 en v1.0). Reglas 8–11 y 15 son nuevas.
+- **Infraestructura**: FastAPI REST (`api/`), JWT auth (`auth/`), OpenTelemetry (`telemetry/`), Teams Bot (`teams_bot/`).
+- `config/antipatrones.json` (v1.0) movido a `legacy/`. Canónico: `config/antipatterns.json` (v2.0).
+
+**v1.0 (2026)**
+Primera versión del sistema agéntico DiagnostiCore. 8 sub-agentes (A1–A8), 7 herramientas compartidas, escala 1–5 para 6 dimensiones, 7 anti-patrones documentados, protocolo completo de síntesis interna.
 
 ---
 
 *InnoVerse Solutions | DiagnostiCore — Sistema Agéntico de Diagnóstico 360*
 *Uso exclusivo del equipo InnoVerse. Confidencial.*
-change to harness
