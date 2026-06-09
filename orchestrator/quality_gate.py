@@ -30,9 +30,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+
 from orchestrator.exceptions import OrchestratorError
 from orchestrator.session_runner import SessionRunner
 from orchestrator import state_manager
+from config import config_loader
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +43,6 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────────────────────
 
 _ROOT = Path(__file__).parent.parent
-_CONFIG_DIR = _ROOT / "config"
 _EVALUATIONS_DIR = _ROOT / "blackboard" / "evaluations"
 _CONTRACTS_DIR = _ROOT / "blackboard" / "contracts"
 
@@ -66,39 +67,6 @@ class QualityGateEscalationError(OrchestratorError):
         )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Config loaders
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _load_maturity_scale(dimension_key: str) -> dict:
-    """Load the maturity scale for the given dimension from config/maturity_scales.json."""
-    path = _CONFIG_DIR / "maturity_scales.json"
-    if not path.exists():
-        logger.warning("maturity_scales.json not found — quality gate will run without scale reference")
-        return {}
-    with open(path, "r", encoding="utf-8") as fh:
-        scales = json.load(fh)
-    return scales.get(dimension_key, scales.get("global", {}))
-
-
-def _load_antipatterns(dimension_key: str) -> list[dict]:
-    """Return anti-patterns relevant to the given dimension."""
-    path = _CONFIG_DIR / "antipatterns.json"
-    if not path.exists():
-        # Fallback to legacy file
-        path = _CONFIG_DIR / "antipatrones.json"
-    if not path.exists():
-        logger.warning("antipatterns.json not found — quality gate will skip anti-pattern verification")
-        return []
-    with open(path, "r", encoding="utf-8") as fh:
-        catalog = json.load(fh)
-    all_ap = catalog.get("antipatrones", [])
-    # Filter to anti-patterns that should be checked for this dimension
-    relevant = [
-        ap for ap in all_ap
-        if dimension_key in ap.get("dimensiones", [ap.get("dimension_primaria", "")])
-    ]
-    return relevant
 
 
 def _load_contract_criteria(diagnostico_id: str, dimension_key: str) -> dict:
@@ -174,8 +142,8 @@ async def run_quality_gate(
     )
 
     # ── Build eval context for A9 ─────────────────────────────────────────────
-    maturity_scale = _load_maturity_scale(dimension_key)
-    antipatterns = _load_antipatterns(dimension_key)
+    maturity_scale = config_loader.load_maturity_scale_for_dimension(dimension_key)
+    antipatterns = config_loader.load_antipatterns_for_dimension(dimension_key)
     contract_criteria = _load_contract_criteria(diagnostico_id, dimension_key)
 
     eval_context = {
@@ -205,6 +173,7 @@ async def run_quality_gate(
 
     # ── Update state ──────────────────────────────────────────────────────────
     score_ponderado = float(verdict.get("puntuacion", 0.0))
+    new_retry_count = retry_count + (0 if passed else 1)
     try:
         state_manager.update_dimension(
             diagnostico_id,
@@ -212,8 +181,8 @@ async def run_quality_gate(
             {
                 "eval_path": eval_path,
                 "eval_passed": passed,
-                "status": "evaluated" if passed else "complete",  # keep "complete" if needs retry
-                "retry_count": retry_count + (0 if passed else 1),
+                "status": "evaluated" if passed else "complete",
+                "retry_count": new_retry_count,
             },
         )
         action = "eval_pass" if passed else "eval_fail"
@@ -226,13 +195,18 @@ async def run_quality_gate(
 
     if passed:
         logger.info("[A9] PASS | dim=%s | score=%.1f", dimension_key, score_ponderado)
-    else:
-        logger.warning(
-            "[A9] FAIL | dim=%s | score=%.1f | feedback=%s",
-            dimension_key, score_ponderado, feedback[:100],
-        )
+        return True, ""
 
-    return passed, feedback
+    logger.warning(
+        "[A9] FAIL | dim=%s | score=%.1f | retry=%d | feedback=%s",
+        dimension_key, score_ponderado, new_retry_count, feedback[:100],
+    )
+
+    # After 2 failures raise immediately — no third round-trip to A9 needed.
+    if new_retry_count >= 2:
+        raise QualityGateEscalationError(dimension_key, diagnostico_id, feedback)
+
+    return False, feedback
 
 
 # ─────────────────────────────────────────────────────────────────────────────

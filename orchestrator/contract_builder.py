@@ -28,8 +28,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from orchestrator.exceptions import OrchestratorError
 from orchestrator.session_runner import SessionRunner
 from orchestrator import state_manager
+from config import config_loader
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +41,6 @@ logger = logging.getLogger(__name__)
 
 _ROOT = Path(__file__).parent.parent
 _CONTRACTS_DIR = _ROOT / "blackboard" / "contracts"
-_CONFIG_DIR = _ROOT / "config"
-_AGENTS_DIR = _ROOT / "agents"
 
 DIMENSION_KEYS = [
     "A1_estrategia",
@@ -54,27 +54,6 @@ DIMENSION_KEYS = [
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
-
-def _load_antipatterns_summary() -> list[dict]:
-    """Load simplified anti-pattern list for the contract prompt."""
-    path = _CONFIG_DIR / "antipatterns.json"
-    if not path.exists():
-        path = _CONFIG_DIR / "antipatrones.json"
-    if not path.exists():
-        return []
-    with open(path, "r", encoding="utf-8") as fh:
-        catalog = json.load(fh)
-    return [
-        {
-            "id": ap["id"],
-            "nombre": ap["nombre"],
-            "prevalencia_pct": ap.get("prevalencia_pct", 0),
-            "dimension_primaria": ap.get("dimension_primaria", ""),
-            "dimensiones": ap.get("dimensiones", []),
-        }
-        for ap in catalog.get("antipatrones", [])
-    ]
-
 
 def _save_contract(diagnostico_id: str, contract: dict) -> str:
     """Persist the contract to disk. Returns relative path string."""
@@ -118,7 +97,7 @@ async def build_contract(
         "diagnostico_id": diagnostico_id,
         "client": client_info,
         "available_evidence": available_evidence,
-        "antipatterns_catalog_summary": _load_antipatterns_summary(),
+        "antipatterns_catalog_summary": config_loader.load_antipatterns_summary(),
         "dimension_keys": DIMENSION_KEYS,
         "instruccion": "Genera el contrato de diagnóstico. Responde ÚNICAMENTE con JSON válido.",
     }
@@ -149,7 +128,9 @@ async def build_contract(
             f"contract at {contract_path}",
         )
     except Exception as exc:
-        logger.warning("Could not update state after contract build: %s", exc)
+        raise OrchestratorError(
+            f"Contract built and saved to {contract_path} but state update failed: {exc}"
+        ) from exc
 
     logger.info("Contract generated and approved | id=%s", diagnostico_id)
     return contract

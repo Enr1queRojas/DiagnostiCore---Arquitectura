@@ -48,6 +48,7 @@ from orchestrator.quality_gate import QualityGateEscalationError, run_quality_ga
 from orchestrator.contract_builder import build_contract, load_contract
 from orchestrator.onepager_evaluator import OnePagerEscalationError, run_onepager_evaluation
 from telemetry.tracing import get_tracer
+from config import config_loader
 
 logger = logging.getLogger(__name__)
 
@@ -66,18 +67,10 @@ AGENT_DIMENSION_MAP: Final[dict[str, str]] = {
     "A6": "A6_tecnologia",
 }
 
-# Valid antipattern IDs — mirrors blackboard.ANTIPATRONES_VALIDOS.
+# Valid antipattern IDs — loaded from config/antipatterns.json at import time.
 # Unknown IDs are stripped with a warning rather than failing the run, because
 # the LLM may legitimately identify real patterns outside the current catalogue.
-_VALID_ANTIPATTERNS: Final[frozenset[str]] = frozenset({
-    "excel_sagrado",
-    "director_orquesta",
-    "isla_automatizacion",
-    "resistencia_silenciosa",
-    "erp_fantasma",
-    "datos_no_hablan",
-    "transformacion_sin_brujula",
-})
+_VALID_ANTIPATTERNS: Final[frozenset[str]] = config_loader.load_antipattern_ids()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -179,11 +172,29 @@ _SCHEMA_ONE_PAGER: Final[dict] = {
     },
 }
 
+_SCHEMA_REPORTE_COMPLETO: Final[dict] = {
+    "type": "object",
+    "required": ["resumen_ejecutivo"],
+    "additionalProperties": True,
+    "properties": {
+        "resumen_ejecutivo": {
+            "type": "string",
+            "minLength": 50,
+            "description": "Extended executive summary for full diagnostic report",
+        },
+        "secciones": {
+            "type": "array",
+            "items": {"type": "object"},
+        },
+    },
+}
+
 # Routes each agent ID to its validation schema
 _SCHEMA_MAP: Final[dict[str, dict]] = {
     **{aid: _SCHEMA_RESULTADO_DIMENSIONAL for aid in AGENT_DIMENSION_MAP},
     "A7": _SCHEMA_SINTESIS,
     "A8": _SCHEMA_ONE_PAGER,
+    "A11": _SCHEMA_REPORTE_COMPLETO,
 }
 
 
@@ -406,6 +417,9 @@ async def _write_to_blackboard(
             elif agent_id == "A8":
                 blackboard.write_one_pager(data)
 
+            elif agent_id == "A11":
+                blackboard.write_reporte_completo(data)
+
             else:
                 raise OrchestratorError(
                     f"No blackboard write routing defined for agent '{agent_id}'."
@@ -463,9 +477,10 @@ async def run_agent(
             if qg_feedback:
                 context["feedback_calidad"] = qg_feedback
 
-            # Step 3: Run agent session (sync → async bridge)
-            raw_output = await asyncio.to_thread(
-                runner.run_agent_session, agent_id, context, run_id
+            # Step 3: Run agent session (sync → async bridge, 300 s timeout)
+            raw_output = await asyncio.wait_for(
+                asyncio.to_thread(runner.run_agent_session, agent_id, context, run_id),
+                timeout=300.0,
             )
 
             # Step 4: Validate output against schema
@@ -643,7 +658,30 @@ async def _execute_pipeline(
     dimensional_agents = ["A1", "A2", "A3", "A4", "A5", "A6"]
     event_bus.emit(run_id, "phase_start", {"phase": "dimensional", "agents": dimensional_agents})
 
-    logger.info("Launching %d dimensional agents concurrently...", len(dimensional_agents))
+    # Resumability: skip dimensions already completed in a previous session.
+    pending_agents = dimensional_agents
+    try:
+        current_state = state_manager.load_state(run_id)
+        pending_agents = [
+            aid for aid in dimensional_agents
+            if current_state["dimensions"][AGENT_DIMENSION_MAP[aid]]["status"]
+            not in ("complete", "evaluated")
+        ]
+        for aid in dimensional_agents:
+            if aid not in pending_agents:
+                dim_key = AGENT_DIMENSION_MAP[aid]
+                results[aid] = blackboard.get_resultado_dimensional(dim_key) or {}
+        if len(pending_agents) < len(dimensional_agents):
+            logger.info(
+                "Resuming run: %d/%d dimensions already complete, launching: %s",
+                len(dimensional_agents) - len(pending_agents),
+                len(dimensional_agents),
+                pending_agents,
+            )
+    except Exception:
+        pending_agents = dimensional_agents
+
+    logger.info("Launching %d dimensional agents concurrently...", len(pending_agents))
     outcomes: list[dict | BaseException] = await asyncio.gather(
         *[
             run_agent(
@@ -652,13 +690,13 @@ async def _execute_pipeline(
                 blackboard=blackboard,
                 runner=runner,
             )
-            for aid in dimensional_agents
+            for aid in pending_agents
         ],
         return_exceptions=True,
     )
 
     failed_agents: list[str] = []
-    for agent_id, outcome in zip(dimensional_agents, outcomes):
+    for agent_id, outcome in zip(pending_agents, outcomes):
         dim_key = AGENT_DIMENSION_MAP.get(agent_id)
         if isinstance(outcome, BaseException):
             logger.error("[%s] FAILED: %s", agent_id, outcome)
@@ -730,21 +768,13 @@ async def _execute_pipeline(
                     failed_agents=[agent_id],
                 ) from retry_exc
 
-            # Second quality-gate pass
-            passed, _ = await run_quality_gate(
+            # Second quality-gate pass — raises QualityGateEscalationError if failed again
+            await run_quality_gate(
                 diagnostico_id=run_id,
                 dimension_key=dim_key,
                 dimensional_output=results[agent_id],
                 runner=runner,
             )
-            if not passed:
-                # QualityGateEscalationError raised on next call (retry_count >= 2)
-                await run_quality_gate(
-                    diagnostico_id=run_id,
-                    dimension_key=dim_key,
-                    dimensional_output=results[agent_id],
-                    runner=runner,
-                )
 
     logger.info("Quality gate complete — all dimensional outputs approved.")
 
@@ -780,29 +810,44 @@ async def _execute_pipeline(
 
     logger.info("Phase 2 complete — synthesis succeeded.")
 
-    # ── Phase 3: Output generation ─────────────────────────────────────────────
-    logger.info("═══ PHASE 3: One-Pager Output | run=%s ═══", run_id)
+    # ── Phase 3: Output generation (A8 + A11 in parallel) ────────────────────
+    # A8 produces the executive One-Pager; A11 produces the extended full report.
+    # Both derive independently from A7's synthesis, so they run concurrently.
+    logger.info("═══ PHASE 3: Output Generation (A8 + A11 parallel) | run=%s ═══", run_id)
     blackboard.set_estado("output")
     event_bus.emit(run_id, "phase_start", {"phase": "output"})
 
-    try:
-        results["A8"] = await run_agent(
-            agent_id="A8",
-            run_id=run_id,
-            blackboard=blackboard,
-            runner=runner,
-        )
-    except (LLMError, AgentOutputError, ValidationError, OrchestratorError) as exc:
-        blackboard.registrar_error("A8", str(exc))
+    phase3_outcomes = await asyncio.gather(
+        run_agent(agent_id="A8", run_id=run_id, blackboard=blackboard, runner=runner),
+        run_agent(agent_id="A11", run_id=run_id, blackboard=blackboard, runner=runner),
+        return_exceptions=True,
+    )
+
+    phase3_agents = ["A8", "A11"]
+    phase3_failures = []
+    for aid, outcome in zip(phase3_agents, phase3_outcomes):
+        if isinstance(outcome, BaseException):
+            logger.error("[%s] Phase 3 FAILED: %s", aid, outcome)
+            blackboard.registrar_error(aid, str(outcome))
+            phase3_failures.append(aid)
+        else:
+            results[aid] = outcome
+
+    # A8 failure is fatal — One-Pager is the primary deliverable.
+    if "A8" in phase3_failures:
         _orch_exc = OrchestratorError(
-            f"Phase 3 (One-Pager) failed: {exc}.",
-            failed_agents=["A8"],
+            f"Phase 3 (One-Pager) failed. A11 status: "
+            f"{'failed' if 'A11' in phase3_failures else 'ok'}.",
+            failed_agents=phase3_failures,
         )
         pipeline_span.record_exception(_orch_exc)
         pipeline_span.set_status(Status(StatusCode.ERROR, "Phase 3 failed"))
-        raise _orch_exc from exc
+        raise _orch_exc
 
-    logger.info("Phase 3 complete — One-Pager generated.")
+    if "A11" in phase3_failures:
+        logger.warning("[A11] Full report failed — pipeline continues with One-Pager only.")
+
+    logger.info("Phase 3 complete — One-Pager (A8) generated.")
     state_manager.update_onepager(run_id, {"status": "generated", "output_path": f"runs/{run_id}.json"})
     state_manager.update_pipeline_status(run_id, "evaluation")
     state_manager.append_history(run_id, "A8", "complete", "One-Pager generated")
@@ -833,19 +878,12 @@ async def _execute_pipeline(
                 failed_agents=["A8"],
             ) from a8_retry_exc
 
-        # Second A10 evaluation — if it fails again, OnePagerEscalationError is raised
-        op_passed, _ = await run_onepager_evaluation(
+        # Second A10 evaluation — raises OnePagerEscalationError if failed again
+        await run_onepager_evaluation(
             diagnostico_id=run_id,
             onepager_output=results["A8"],
             runner=runner,
         )
-        if not op_passed:
-            # Third call raises OnePagerEscalationError (retry_count >= 2)
-            await run_onepager_evaluation(
-                diagnostico_id=run_id,
-                onepager_output=results["A8"],
-                runner=runner,
-            )
 
     logger.info("One-Pager approved by A10 | run=%s", run_id)
     logger.info("════ PIPELINE COMPLETE | run=%s ════", run_id)

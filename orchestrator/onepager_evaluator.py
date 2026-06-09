@@ -23,7 +23,6 @@ Raises:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,6 +31,7 @@ from typing import Any
 from orchestrator.exceptions import OrchestratorError
 from orchestrator.session_runner import SessionRunner
 from orchestrator import state_manager
+from config import config_loader
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,6 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────────────────────
 
 _ROOT = Path(__file__).parent.parent
-_CONFIG_DIR = _ROOT / "config"
 _ONEPAGER_DIR = _ROOT / "blackboard" / "onepager"
 
 
@@ -66,17 +65,6 @@ class OnePagerEscalationError(OrchestratorError):
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
-
-def _load_acceptance_criteria() -> list[dict]:
-    """Load the 8-item acceptance checklist from config/acceptance_criteria.json."""
-    path = _CONFIG_DIR / "acceptance_criteria.json"
-    if not path.exists():
-        logger.warning("acceptance_criteria.json not found — A10 will evaluate without criteria")
-        return []
-    with open(path, "r", encoding="utf-8") as fh:
-        data = json.load(fh)
-    return data.get("criterios", [])
-
 
 def _save_onepager_evaluation(diagnostico_id: str, eval_data: dict) -> str:
     """Persist A10 evaluation to blackboard/onepager/ and return relative path."""
@@ -143,7 +131,7 @@ async def run_onepager_evaluation(
     # ── Build eval context for A10 ────────────────────────────────────────────
     # The A10 system prompt lives on the Agent object in the Managed Agent
     # environment — SessionRunner delivers context as the user message only.
-    acceptance_criteria = _load_acceptance_criteria()
+    acceptance_criteria = config_loader.load_acceptance_criteria().get("criterios", [])
 
     eval_context = {
         "diagnostico_id": diagnostico_id,
@@ -169,6 +157,7 @@ async def run_onepager_evaluation(
     eval_path = _save_onepager_evaluation(diagnostico_id, verdict)
 
     # ── Update state ──────────────────────────────────────────────────────────
+    new_retry_count = retry_count + (0 if passed else 1)
     try:
         state_manager.update_onepager(
             diagnostico_id,
@@ -176,7 +165,7 @@ async def run_onepager_evaluation(
                 "eval_path": eval_path,
                 "eval_passed": passed,
                 "status": "approved" if passed else "generated",
-                "retry_count": retry_count + (0 if passed else 1),
+                "retry_count": new_retry_count,
             },
         )
         if passed:
@@ -191,10 +180,15 @@ async def run_onepager_evaluation(
 
     if passed:
         logger.info("[A10] One-Pager APPROVED | run=%s", diagnostico_id)
-    else:
-        logger.warning(
-            "[A10] One-Pager REJECTED | run=%s | failed=%s | feedback=%s",
-            diagnostico_id, failed_criteria, feedback[:100],
-        )
+        return True, ""
 
-    return passed, feedback
+    logger.warning(
+        "[A10] One-Pager REJECTED | run=%s | retry=%d | failed=%s | feedback=%s",
+        diagnostico_id, new_retry_count, failed_criteria, feedback[:100],
+    )
+
+    # After 2 failures raise immediately — no third round-trip to A10 needed.
+    if new_retry_count >= 2:
+        raise OnePagerEscalationError(diagnostico_id, feedback)
+
+    return False, feedback
