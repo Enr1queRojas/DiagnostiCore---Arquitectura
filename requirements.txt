@@ -4,6 +4,9 @@
 # Anthropic SDK — async LLM client
 anthropic>=0.40.0
 
+# Ollama Python client — local model support
+ollama>=0.3.0
+
 # JSON Schema validation for agent outputs
 jsonschema>=4.23.0
 

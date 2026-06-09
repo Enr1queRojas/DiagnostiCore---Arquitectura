@@ -47,7 +47,7 @@ from auth.jwt_auth import (
 )
 from blackboard.blackboard import Blackboard
 from orchestrator import OrchestratorError, run_full_pipeline
-from orchestrator.session_runner import SessionRunner
+from orchestrator.ollama_runner import OllamaSessionRunner as SessionRunner
 from orchestrator.managed_agent_setup import setup_managed_agents
 
 
