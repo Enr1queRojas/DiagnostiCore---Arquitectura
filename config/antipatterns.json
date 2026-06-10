@@ -1,10 +1,20 @@
 {
   "_meta": {
-    "version": "2.0",
-    "descripcion": "Catálogo de 7 anti-patrones documentados por InnoVerse. Versión v2 incluye campo 'dimensiones' para verificación proactiva por el agente quality-gate A9.",
+    "version": "2.1",
+    "descripcion": "Catálogo de 7 anti-patrones documentados por InnoVerse. Versión v2.1 agrega 'ids_validos' como fuente canónica — agent_runner.py y blackboard.py leen de aquí.",
     "fuente": "InnoVerse Book de Diagnóstico 360 v1.0 (2025) + SKILL.md Sección 9",
     "nota": "El campo 'dimensiones' indica en cuáles dimensiones A9 DEBE verificar activamente si el anti-patrón está presente, incluso si el agente dimensional no lo reportó."
   },
+
+  "ids_validos": [
+    "excel_sagrado",
+    "director_orquesta",
+    "isla_automatizacion",
+    "resistencia_silenciosa",
+    "erp_fantasma",
+    "datos_no_hablan",
+    "transformacion_sin_brujula"
+  ],
 
   "antipatrones": [
     {

@@ -65,7 +65,8 @@ from api.models import (
 from api.sse import event_bus
 from auth.jwt_auth import TokenError, create_run_token, verify_run_token
 from blackboard.blackboard import Blackboard, BlackboardError
-from orchestrator import AsyncLLMClient, OrchestratorError, run_full_pipeline
+from orchestrator import OrchestratorError, run_full_pipeline
+from orchestrator.ollama_runner import OllamaSessionRunner
 from telemetry.tracing import setup_telemetry
 
 logger = logging.getLogger(__name__)
@@ -178,14 +179,17 @@ def _load_blackboard(run_id: str) -> Blackboard:
 def _build_agents_status(bb: Blackboard) -> list[AgentStatus]:
     """Build per-agent status list from blackboard data."""
     AGENT_MAP = [
-        ("A1", "A1_estrategia"),
-        ("A2", "A2_liderazgo"),
-        ("A3", "A3_cultura"),
-        ("A4", "A4_procesos"),
-        ("A5", "A5_datos"),
-        ("A6", "A6_tecnologia"),
-        ("A7", None),
-        ("A8", None),
+        ("A1",  "A1_estrategia"),
+        ("A2",  "A2_liderazgo"),
+        ("A3",  "A3_cultura"),
+        ("A4",  "A4_procesos"),
+        ("A5",  "A5_datos"),
+        ("A6",  "A6_tecnologia"),
+        ("A7",  None),
+        ("A8",  None),
+        ("A9",  None),
+        ("A10", None),
+        ("A11", None),
     ]
     completed = bb.agentes_completados()
     statuses: list[AgentStatus] = []
@@ -215,7 +219,6 @@ def _build_agents_status(bb: Blackboard) -> list[AgentStatus]:
 async def _run_pipeline_task(
     run_id: str,
     model: str,
-    api_key: str,
     runs_dir: str,
 ) -> None:
     """
@@ -225,8 +228,8 @@ async def _run_pipeline_task(
     """
     logger.info("Background pipeline starting | run=%s | model=%s", run_id, model)
     try:
-        llm_client = AsyncLLMClient(api_key=api_key, model=model)
-        await run_full_pipeline(run_id=run_id, llm_client=llm_client, runs_dir=runs_dir)
+        runner = OllamaSessionRunner(model=model)
+        await run_full_pipeline(run_id=run_id, runner=runner, runs_dir=runs_dir)
         # pipeline_done event is emitted from run_full_pipeline via agent_runner
         logger.info("Background pipeline complete | run=%s", run_id)
     except OrchestratorError as exc:
@@ -265,13 +268,6 @@ async def create_run(body: RunCreateRequest) -> RunCreateResponse:
     Returns a run_id and a scoped JWT Bearer token.
     Pass the token in the Authorization header for all subsequent calls to this run.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    if not api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="ANTHROPIC_API_KEY environment variable is not set on the server.",
-        )
-
     bb = Blackboard.crear_run(
         nombre_cliente=body.cliente,
         sector=body.sector,
@@ -338,13 +334,6 @@ async def start_pipeline(
 
     Returns 409 if a pipeline is already running for this run.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    if not api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="ANTHROPIC_API_KEY is not set on the server.",
-        )
-
     # Verify run exists
     _load_blackboard(run_id)
 
@@ -360,7 +349,6 @@ async def start_pipeline(
         _run_pipeline_task(
             run_id=run_id,
             model=body.model,
-            api_key=api_key,
             runs_dir=_get_runs_dir(),
         ),
         name=f"pipeline-{run_id}",

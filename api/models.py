@@ -45,8 +45,8 @@ class RunCreateRequest(BaseModel):
 class PipelineStartRequest(BaseModel):
     """Body for POST /api/runs/{run_id}/pipeline — triggers pipeline execution."""
     model: str = Field(
-        default="claude-sonnet-4-6",
-        description="Anthropic model ID to use.",
+        default="gemma4:12b",
+        description="Ollama model tag to use (e.g. 'gemma4:12b').",
     )
 
 

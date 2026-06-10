@@ -1,0 +1,10 @@
+config/managed_agents_config.json
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Teams bot — credenciales locales (nunca commitear)
+.env.teams
+

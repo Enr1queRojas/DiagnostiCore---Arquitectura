@@ -28,11 +28,12 @@ _spec.loader.exec_module(sm)
 # ─────────────────────────────────────────────────────────────────────────────
 
 @pytest.fixture(autouse=True)
-def patch_state_file(tmp_path, monkeypatch):
-    """Redirect the state file to a temp dir for every test."""
-    fake_state = tmp_path / "diagnostico-state.json"
-    monkeypatch.setattr(sm, "_STATE_FILE", fake_state)
-    yield fake_state
+def patch_state_dir(tmp_path, monkeypatch):
+    """Redirect per-run state files to a temp directory for every test."""
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    monkeypatch.setattr(sm, "_STATE_DIR", state_dir)
+    yield state_dir
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -40,9 +41,9 @@ def patch_state_file(tmp_path, monkeypatch):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestInitState:
-    def test_creates_file(self, patch_state_file):
+    def test_creates_file(self, patch_state_dir):
         sm.init_state("DX-2026-001", {"name": "Acme", "industry": "manufactura", "size": "mediana"})
-        assert patch_state_file.exists()
+        assert (patch_state_dir / "DX-2026-001-state.json").exists()
 
     def test_returns_correct_id(self):
         state = sm.init_state("DX-2026-001")
@@ -65,11 +66,14 @@ class TestInitState:
         assert state["client"]["name"] == "TechCo"
         assert state["client"]["industry"] == "servicios"
 
-    def test_overwrites_existing_state(self):
+    def test_independent_files_per_run(self):
         sm.init_state("DX-2026-001")
         sm.init_state("DX-2026-002")
         loaded = sm.load_state("DX-2026-002")
         assert loaded["diagnostico_id"] == "DX-2026-002"
+        # Each run has its own file — DX-2026-001 is unaffected
+        loaded_1 = sm.load_state("DX-2026-001")
+        assert loaded_1["diagnostico_id"] == "DX-2026-001"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -81,8 +85,16 @@ class TestLoadState:
         with pytest.raises(FileNotFoundError):
             sm.load_state("DX-2026-999")
 
-    def test_raises_on_id_mismatch(self):
-        sm.init_state("DX-2026-001")
+    def test_raises_on_id_mismatch(self, patch_state_dir):
+        # Simulate a corrupted state file: path says "DX-2026-WRONG" but
+        # the JSON inside claims a different diagnostico_id.
+        corrupted = patch_state_dir / "DX-2026-WRONG-state.json"
+        corrupted.write_text(
+            json.dumps({"diagnostico_id": "DX-2026-DIFFERENT", "status": "initialized",
+                        "dimensions": {}, "history": [], "client": {}, "contract": {},
+                        "synthesis": {}, "onepager": {}}),
+            encoding="utf-8",
+        )
         with pytest.raises(ValueError, match="diagnostico_id"):
             sm.load_state("DX-2026-WRONG")
 

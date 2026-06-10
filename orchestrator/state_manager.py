@@ -1,12 +1,18 @@
 """
 orchestrator/state_manager.py
 ==============================
-Manages diagnostico-state.json — the session-persistence layer for DiagnostiCore v2.
+Manages per-run state files — the session-persistence layer for DiagnostiCore v2.
 
 Each new session of Claude Code starts without memory of prior work. This module
 implements the equivalent of the `progress.txt + git log` pattern from Anthropic's
 Harness Design article: a structured JSON artifact that carries the agent's prior
 state forward into the next session.
+
+Each diagnostic run has its own state file at:
+    blackboard/state/{run_id}-state.json
+
+This allows multiple diagnostics to run concurrently without state corruption.
+The legacy single-file path (blackboard/diagnostico-state.json) is no longer used.
 
 Public API:
     load_state(diagnostico_id)           -> dict
@@ -17,11 +23,12 @@ Public API:
     update_contract(diagnostico_id, path, status)            -> None
     update_synthesis(diagnostico_id, updates)                -> None
     update_onepager(diagnostico_id, updates)                 -> None
+    update_pipeline_status(diagnostico_id, new_status)       -> None
     get_next_pending(diagnostico_id)     -> str | None
     is_all_dimensions_complete(diagnostico_id)   -> bool
     is_all_dimensions_evaluated(diagnostico_id)  -> bool
 
-File: blackboard/diagnostico-state.json
+Files: blackboard/state/{run_id}-state.json
 """
 
 from __future__ import annotations
@@ -40,7 +47,14 @@ logger = logging.getLogger(__name__)
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
 
-_STATE_FILE = Path(__file__).parent.parent / "blackboard" / "diagnostico-state.json"
+_STATE_DIR = Path(__file__).parent.parent / "blackboard" / "state"
+
+
+def _state_file(run_id: str) -> Path:
+    """Return the per-run state file path, creating the directory if needed."""
+    _STATE_DIR.mkdir(parents=True, exist_ok=True)
+    return _STATE_DIR / f"{run_id}-state.json"
+
 
 DIMENSION_KEYS = [
     "A1_estrategia",
@@ -107,21 +121,23 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _read_raw() -> dict:
+def _read_raw(run_id: str) -> dict:
     """Read state file without acquiring a lock (caller must hold lock)."""
-    if not _STATE_FILE.exists():
+    sf = _state_file(run_id)
+    if not sf.exists():
         return {}
-    with open(_STATE_FILE, "r", encoding="utf-8") as fh:
+    with open(sf, "r", encoding="utf-8") as fh:
         return json.load(fh)
 
 
-def _write_raw(state: dict) -> None:
+def _write_raw(run_id: str, state: dict) -> None:
     """Write state file atomically via a temp file (caller must hold lock)."""
-    tmp = _STATE_FILE.with_suffix(".tmp")
+    sf = _state_file(run_id)
+    tmp = sf.with_suffix(".tmp")
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(state, fh, ensure_ascii=False, indent=2)
         fh.write("\n")
-    tmp.replace(_STATE_FILE)
+    tmp.replace(sf)
 
 
 def _blank_state(diagnostico_id: str, client: dict | None = None) -> dict:
@@ -175,33 +191,35 @@ def load_state(diagnostico_id: str) -> dict:
     Load the current state for the given diagnostico_id.
 
     Raises:
-        FileNotFoundError: If no state file exists yet.
-        ValueError: If the stored state belongs to a different diagnostico_id.
+        FileNotFoundError: If no state file exists yet for this run.
+        ValueError: If the file's internal diagnostico_id doesn't match (file corruption).
     """
-    if not _STATE_FILE.exists():
+    sf = _state_file(diagnostico_id)
+    if not sf.exists():
         raise FileNotFoundError(
-            f"No state file found at {_STATE_FILE}. "
+            f"No state file found for run '{diagnostico_id}' at {sf}. "
             "Call init_state() to create a new diagnostic."
         )
-    state = _read_raw()
-    stored_id = state.get("diagnostico_id", "")
-    if stored_id and stored_id != diagnostico_id:
+    state = _read_raw(diagnostico_id)
+    if state.get("diagnostico_id") != diagnostico_id:
         raise ValueError(
-            f"State file contains diagnostico_id='{stored_id}', "
-            f"but requested '{diagnostico_id}'. "
-            "Call init_state() to start a new diagnostic."
+            f"State file diagnostico_id mismatch: expected '{diagnostico_id}', "
+            f"got '{state.get('diagnostico_id')}'. File may be corrupted."
         )
     return state
 
 
 def save_state(state: dict) -> None:
     """Persist the full state dict to disk with file locking."""
-    lock_path = _STATE_FILE.with_suffix(".lock")
+    run_id = state.get("diagnostico_id", "")
+    if not run_id:
+        raise ValueError("state dict must have a 'diagnostico_id' key")
+    lock_path = _state_file(run_id).with_suffix(".lock")
     fh = _acquire_lock(lock_path)
     try:
         state["updated_at"] = _now_iso()
-        _write_raw(state)
-        logger.debug("State saved | id=%s | status=%s", state.get("diagnostico_id"), state.get("status"))
+        _write_raw(run_id, state)
+        logger.debug("State saved | id=%s | status=%s", run_id, state.get("status"))
     finally:
         _release_lock(fh)
 
@@ -232,7 +250,7 @@ def update_dimension(
     Apply partial updates to a single dimension entry.
 
     Args:
-        diagnostico_id: Must match the stored state.
+        diagnostico_id: Run ID whose state file to update.
         dimension_key: One of DIMENSION_KEYS (e.g. "A1_estrategia").
         updates: Dict with any subset of {status, output_path, eval_path,
                  score, eval_passed, retry_count}.
@@ -240,14 +258,13 @@ def update_dimension(
     if dimension_key not in DIMENSION_KEYS:
         raise ValueError(f"Unknown dimension_key: {dimension_key!r}. Valid: {DIMENSION_KEYS}")
 
-    lock_path = _STATE_FILE.with_suffix(".lock")
+    lock_path = _state_file(diagnostico_id).with_suffix(".lock")
     fh = _acquire_lock(lock_path)
     try:
-        state = _read_raw()
-        _assert_id(state, diagnostico_id)
+        state = _read_raw(diagnostico_id)
         state["dimensions"][dimension_key].update(updates)
         state["updated_at"] = _now_iso()
-        _write_raw(state)
+        _write_raw(diagnostico_id, state)
         logger.debug(
             "Dimension updated | id=%s | dim=%s | updates=%s",
             diagnostico_id, dimension_key, updates,
@@ -258,17 +275,16 @@ def update_dimension(
 
 def update_contract(diagnostico_id: str, path: str, status: str) -> None:
     """Update the contract path and approval status."""
-    lock_path = _STATE_FILE.with_suffix(".lock")
+    lock_path = _state_file(diagnostico_id).with_suffix(".lock")
     fh = _acquire_lock(lock_path)
     try:
-        state = _read_raw()
-        _assert_id(state, diagnostico_id)
+        state = _read_raw(diagnostico_id)
         state["contract"]["path"] = path
         state["contract"]["status"] = status
         state["updated_at"] = _now_iso()
         if status == "approved":
             state["status"] = "contract_approved"
-        _write_raw(state)
+        _write_raw(diagnostico_id, state)
         logger.info("Contract updated | id=%s | status=%s", diagnostico_id, status)
     finally:
         _release_lock(fh)
@@ -276,28 +292,26 @@ def update_contract(diagnostico_id: str, path: str, status: str) -> None:
 
 def update_synthesis(diagnostico_id: str, updates: dict) -> None:
     """Apply partial updates to the synthesis block."""
-    lock_path = _STATE_FILE.with_suffix(".lock")
+    lock_path = _state_file(diagnostico_id).with_suffix(".lock")
     fh = _acquire_lock(lock_path)
     try:
-        state = _read_raw()
-        _assert_id(state, diagnostico_id)
+        state = _read_raw(diagnostico_id)
         state["synthesis"].update(updates)
         state["updated_at"] = _now_iso()
-        _write_raw(state)
+        _write_raw(diagnostico_id, state)
     finally:
         _release_lock(fh)
 
 
 def update_onepager(diagnostico_id: str, updates: dict) -> None:
     """Apply partial updates to the onepager block."""
-    lock_path = _STATE_FILE.with_suffix(".lock")
+    lock_path = _state_file(diagnostico_id).with_suffix(".lock")
     fh = _acquire_lock(lock_path)
     try:
-        state = _read_raw()
-        _assert_id(state, diagnostico_id)
+        state = _read_raw(diagnostico_id)
         state["onepager"].update(updates)
         state["updated_at"] = _now_iso()
-        _write_raw(state)
+        _write_raw(diagnostico_id, state)
     finally:
         _release_lock(fh)
 
@@ -306,14 +320,13 @@ def update_pipeline_status(diagnostico_id: str, new_status: str) -> None:
     """Advance the top-level pipeline status."""
     if new_status not in VALID_STATUSES:
         raise ValueError(f"Invalid status: {new_status!r}. Valid: {VALID_STATUSES}")
-    lock_path = _STATE_FILE.with_suffix(".lock")
+    lock_path = _state_file(diagnostico_id).with_suffix(".lock")
     fh = _acquire_lock(lock_path)
     try:
-        state = _read_raw()
-        _assert_id(state, diagnostico_id)
+        state = _read_raw(diagnostico_id)
         state["status"] = new_status
         state["updated_at"] = _now_iso()
-        _write_raw(state)
+        _write_raw(diagnostico_id, state)
         logger.info("Pipeline status → %s | id=%s", new_status, diagnostico_id)
     finally:
         _release_lock(fh)
@@ -326,11 +339,10 @@ def append_history(
     detail: str = "",
 ) -> None:
     """Append an event to the diagnostic history log."""
-    lock_path = _STATE_FILE.with_suffix(".lock")
+    lock_path = _state_file(diagnostico_id).with_suffix(".lock")
     fh = _acquire_lock(lock_path)
     try:
-        state = _read_raw()
-        _assert_id(state, diagnostico_id)
+        state = _read_raw(diagnostico_id)
         state["history"].append(
             {
                 "timestamp": _now_iso(),
@@ -340,7 +352,7 @@ def append_history(
             }
         )
         state["updated_at"] = _now_iso()
-        _write_raw(state)
+        _write_raw(diagnostico_id, state)
     finally:
         _release_lock(fh)
 

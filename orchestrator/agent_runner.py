@@ -14,10 +14,10 @@ Each run_agent() call:
   1. Loads the agent's system prompt from /agents/*.md
   2. Exports fresh context from the Blackboard
   3. Injects context into XML-tagged user message (prompt-injection guard)
-  4. Samples the LLM via AsyncLLMClient
-  5. Extracts JSON from raw response (handles ```json blocks)
+  4. Runs a Managed Agent session via SessionRunner
+  5. Validates output against JSON Schema
   6. Validates against JSON Schema + business rules
-  7. Self-corrects ONCE if validation fails, then raises on second failure
+  7. Self-correction is handled by the A9 quality gate retry loop
   8. Writes validated output to the Blackboard via the correct write method
 """
 
@@ -42,12 +42,13 @@ from orchestrator.exceptions import (
     OrchestratorError,
     ValidationError,
 )
-from orchestrator.llm_client import AsyncLLMClient
+from orchestrator.session_runner import SessionRunner
 from orchestrator import state_manager
 from orchestrator.quality_gate import QualityGateEscalationError, run_quality_gate
 from orchestrator.contract_builder import build_contract, load_contract
 from orchestrator.onepager_evaluator import OnePagerEscalationError, run_onepager_evaluation
 from telemetry.tracing import get_tracer
+from config import config_loader
 
 logger = logging.getLogger(__name__)
 
@@ -66,18 +67,10 @@ AGENT_DIMENSION_MAP: Final[dict[str, str]] = {
     "A6": "A6_tecnologia",
 }
 
-# Valid antipattern IDs — mirrors blackboard.ANTIPATRONES_VALIDOS.
+# Valid antipattern IDs — loaded from config/antipatterns.json at import time.
 # Unknown IDs are stripped with a warning rather than failing the run, because
 # the LLM may legitimately identify real patterns outside the current catalogue.
-_VALID_ANTIPATTERNS: Final[frozenset[str]] = frozenset({
-    "excel_sagrado",
-    "director_orquesta",
-    "isla_automatizacion",
-    "resistencia_silenciosa",
-    "erp_fantasma",
-    "datos_no_hablan",
-    "transformacion_sin_brujula",
-})
+_VALID_ANTIPATTERNS: Final[frozenset[str]] = config_loader.load_antipattern_ids()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -179,11 +172,29 @@ _SCHEMA_ONE_PAGER: Final[dict] = {
     },
 }
 
+_SCHEMA_REPORTE_COMPLETO: Final[dict] = {
+    "type": "object",
+    "required": ["resumen_ejecutivo"],
+    "additionalProperties": True,
+    "properties": {
+        "resumen_ejecutivo": {
+            "type": "string",
+            "minLength": 50,
+            "description": "Extended executive summary for full diagnostic report",
+        },
+        "secciones": {
+            "type": "array",
+            "items": {"type": "object"},
+        },
+    },
+}
+
 # Routes each agent ID to its validation schema
 _SCHEMA_MAP: Final[dict[str, dict]] = {
     **{aid: _SCHEMA_RESULTADO_DIMENSIONAL for aid in AGENT_DIMENSION_MAP},
     "A7": _SCHEMA_SINTESIS,
     "A8": _SCHEMA_ONE_PAGER,
+    "A11": _SCHEMA_REPORTE_COMPLETO,
 }
 
 
@@ -406,6 +417,9 @@ async def _write_to_blackboard(
             elif agent_id == "A8":
                 blackboard.write_one_pager(data)
 
+            elif agent_id == "A11":
+                blackboard.write_reporte_completo(data)
+
             else:
                 raise OrchestratorError(
                     f"No blackboard write routing defined for agent '{agent_id}'."
@@ -418,81 +432,6 @@ async def _write_to_blackboard(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Self-correction loop
-# ─────────────────────────────────────────────────────────────────────────────
-
-async def _parse_validate_with_correction(
-    agent_id: str,
-    raw_response: str,
-    messages: list[dict],
-    system_prompt: str,
-    llm_client: AsyncLLMClient,
-) -> dict[str, Any]:
-    """
-    Attempts to parse and validate the LLM response. On failure, performs
-    exactly ONE self-correction round by appending the error to the
-    conversation and resampling.
-
-    Two-attempt strategy:
-      Attempt 1 — parse + validate raw_response
-      Attempt 2 — (if attempt 1 fails) extend conversation with error context,
-                  resample, parse + validate corrected response
-
-    Raises:
-        AgentOutputError: If both attempts fail to produce valid JSON.
-        ValidationError:  If both attempts produce parseable but invalid JSON.
-        LLMError:         If the correction sampling call itself fails.
-    """
-    first_error: Exception | None = None
-
-    # ── Attempt 1 ─────────────────────────────────────────────────────────────
-    try:
-        data = _parse_llm_response(agent_id, raw_response)
-        _validate_output(agent_id, data)
-        return data
-    except (AgentOutputError, ValidationError) as exc:
-        first_error = exc
-        logger.warning(
-            "[%s] First attempt invalid — launching self-correction. Error: %s",
-            agent_id, exc,
-        )
-
-    # ── Attempt 2: Self-correction ─────────────────────────────────────────────
-    correction_prompt = _CORRECTION_TEMPLATE.format(
-        error=str(first_error),
-        # Truncate to 1 000 chars to keep the correction prompt concise
-        truncated_response=raw_response[:1000],
-    )
-
-    # Extend the conversation so the model sees its own mistake
-    correction_messages = messages + [
-        {"role": "assistant", "content": raw_response},
-        {"role": "user", "content": correction_prompt},
-    ]
-
-    logger.debug("[%s] Sending self-correction request to LLM", agent_id)
-    corrected_response = await llm_client.sample(
-        agent_id=agent_id,
-        system_prompt=system_prompt,
-        messages=correction_messages,
-    )
-
-    try:
-        data = _parse_llm_response(agent_id, corrected_response)
-        _validate_output(agent_id, data)
-        logger.info("[%s] Self-correction succeeded", agent_id)
-        return data
-    except (AgentOutputError, ValidationError) as exc:
-        raise AgentOutputError(
-            f"[{agent_id}] Output invalid after self-correction. "
-            f"Original error: {first_error}. "
-            f"Correction error: {exc}",
-            agent_id=agent_id,
-            attempt=2,
-        ) from exc
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Public agent runner
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -500,33 +439,22 @@ async def run_agent(
     agent_id: str,
     run_id: str,
     blackboard: Blackboard,
-    llm_client: AsyncLLMClient,
+    runner: SessionRunner,
 ) -> dict[str, Any]:
-    """
-    Executes a single DiagnostiCore agent end-to-end.
+    """Executes a single DiagnostiCore agent via a Managed Agent session.
 
     Steps:
-      1. Load system prompt from /agents/<id>.md
-      2. Export agent-scoped context from the Blackboard
-      3. Build XML-tagged user message (prompt injection guard)
-      4. Sample the LLM
-      5. Parse + validate output (with one self-correction attempt)
-      6. Write validated output to the Blackboard
+      1. Export agent-scoped context from the Blackboard
+      2. Inject contract and quality-gate feedback if available
+      3. Run agent session (creates Session, streams SSE, parses JSON)
+      4. Validate output against schema
+      5. Write validated output to the Blackboard
 
     Args:
-        agent_id:   One of "A1" … "A8".
+        agent_id:   One of "A1" ... "A8".
         run_id:     The active diagnostic run identifier.
         blackboard: A live Blackboard instance for this run.
-        llm_client: Configured AsyncLLMClient.
-
-    Returns:
-        The validated agent output dict (also persisted to the blackboard).
-
-    Raises:
-        LLMError:          On unrecoverable API failures.
-        AgentOutputError:  If valid JSON cannot be produced after correction.
-        ValidationError:   On schema / business-rule violations after correction.
-        OrchestratorError: If the blackboard rejects the validated write.
+        runner:     Configured SessionRunner (reads agent IDs from managed_agents_config.json).
     """
     tracer = get_tracer()
     with tracer.start_as_current_span(
@@ -537,42 +465,36 @@ async def run_agent(
         event_bus.emit(run_id, "agent_start", {"agent_id": agent_id})
 
         try:
-            # Step 1: Load system prompt
-            system_prompt = llm_client.load_system_prompt(agent_id)
-            logger.debug("[%s] System prompt loaded (%d chars)", agent_id, len(system_prompt))
+            # Step 1: Export context (agent sees only the data it needs)
+            context: dict[str, Any] = blackboard.exportar_para_agente(agent_id)
 
-            # Step 2: Export context (agent sees only the data it needs)
-            context = blackboard.exportar_para_agente(agent_id)
+            # Step 2: Inject contract and quality-gate feedback if available
+            contract = load_contract(run_id) or {}
+            if contract:
+                context["contrato"] = contract
 
-            # Step 3: Build user message with XML-wrapped evidence
-            user_message = _build_user_message(context)
-            messages: list[dict] = [{"role": "user", "content": user_message}]
+            qg_feedback = blackboard._data.get("quality_gate_feedback", {}).get(agent_id)
+            if qg_feedback:
+                context["feedback_calidad"] = qg_feedback
 
-            # Step 4: First LLM call
-            raw_response = await llm_client.sample(
-                agent_id=agent_id,
-                system_prompt=system_prompt,
-                messages=messages,
+            # Step 3: Run agent session (sync → async bridge, 300 s timeout)
+            raw_output = await asyncio.wait_for(
+                asyncio.to_thread(runner.run_agent_session, agent_id, context, run_id),
+                timeout=300.0,
             )
 
-            # Step 5: Parse, validate, self-correct if needed
-            validated_output = await _parse_validate_with_correction(
-                agent_id=agent_id,
-                raw_response=raw_response,
-                messages=messages,
-                system_prompt=system_prompt,
-                llm_client=llm_client,
-            )
+            # Step 4: Validate output against schema
+            _validate_output(agent_id, raw_output)
 
-            # Step 6: Persist to blackboard (async — acquires write_lock internally)
-            await _write_to_blackboard(agent_id, blackboard, validated_output)
+            # Step 5: Persist to blackboard
+            await _write_to_blackboard(agent_id, blackboard, raw_output)
 
-            nivel = validated_output.get("nivel_madurez")
+            nivel = raw_output.get("nivel_madurez")
             if nivel is not None:
                 span.set_attribute("agent.nivel_madurez", nivel)
             event_bus.emit(run_id, "agent_done", {"agent_id": agent_id, "nivel_madurez": nivel})
             logger.info("─── Agent DONE  | id=%s | run=%s ───", agent_id, run_id)
-            return validated_output
+            return raw_output
 
         except Exception as exc:
             span.record_exception(exc)
@@ -587,7 +509,7 @@ async def run_agent(
 
 async def run_full_pipeline(
     run_id: str,
-    llm_client: AsyncLLMClient,
+    runner: SessionRunner,
     runs_dir: str = "runs",
 ) -> dict[str, dict[str, Any]]:
     """
@@ -607,9 +529,9 @@ async def run_full_pipeline(
       Phase 2 completed without errors.
 
     Args:
-        run_id:     The active diagnostic run identifier (matches the JSON filename).
-        llm_client: Configured AsyncLLMClient shared across all agents.
-        runs_dir:   Directory where run JSON files are stored.
+        run_id:   The active diagnostic run identifier (matches the JSON filename).
+        runner:   SessionRunner shared across all agents.
+        runs_dir: Directory where run JSON files are stored.
 
     Returns:
         Dict mapping agent IDs to their validated outputs,
@@ -632,7 +554,7 @@ async def run_full_pipeline(
         return await _execute_pipeline(
             run_id=run_id,
             blackboard=blackboard,
-            llm_client=llm_client,
+            runner=runner,
             results=results,
             pipeline_span=pipeline_span,
         )
@@ -641,7 +563,7 @@ async def run_full_pipeline(
 async def _execute_pipeline(
     run_id: str,
     blackboard: Blackboard,
-    llm_client: AsyncLLMClient,
+    runner: SessionRunner,
     results: dict[str, dict[str, Any]],
     pipeline_span: Any,
 ) -> dict[str, dict[str, Any]]:
@@ -706,7 +628,7 @@ async def _execute_pipeline(
                 diagnostico_id=run_id,
                 client_info=client_info,
                 available_evidence=evidence_keys,
-                llm_client=llm_client,
+                runner=runner,
             )
             logger.info("Contract generated | run=%s", run_id)
         except Exception as contract_exc:
@@ -736,22 +658,45 @@ async def _execute_pipeline(
     dimensional_agents = ["A1", "A2", "A3", "A4", "A5", "A6"]
     event_bus.emit(run_id, "phase_start", {"phase": "dimensional", "agents": dimensional_agents})
 
-    logger.info("Launching %d dimensional agents concurrently...", len(dimensional_agents))
+    # Resumability: skip dimensions already completed in a previous session.
+    pending_agents = dimensional_agents
+    try:
+        current_state = state_manager.load_state(run_id)
+        pending_agents = [
+            aid for aid in dimensional_agents
+            if current_state["dimensions"][AGENT_DIMENSION_MAP[aid]]["status"]
+            not in ("complete", "evaluated")
+        ]
+        for aid in dimensional_agents:
+            if aid not in pending_agents:
+                dim_key = AGENT_DIMENSION_MAP[aid]
+                results[aid] = blackboard.get_resultado_dimensional(dim_key) or {}
+        if len(pending_agents) < len(dimensional_agents):
+            logger.info(
+                "Resuming run: %d/%d dimensions already complete, launching: %s",
+                len(dimensional_agents) - len(pending_agents),
+                len(dimensional_agents),
+                pending_agents,
+            )
+    except Exception:
+        pending_agents = dimensional_agents
+
+    logger.info("Launching %d dimensional agents concurrently...", len(pending_agents))
     outcomes: list[dict | BaseException] = await asyncio.gather(
         *[
             run_agent(
                 agent_id=aid,
                 run_id=run_id,
                 blackboard=blackboard,
-                llm_client=llm_client,
+                runner=runner,
             )
-            for aid in dimensional_agents
+            for aid in pending_agents
         ],
         return_exceptions=True,
     )
 
     failed_agents: list[str] = []
-    for agent_id, outcome in zip(dimensional_agents, outcomes):
+    for agent_id, outcome in zip(pending_agents, outcomes):
         dim_key = AGENT_DIMENSION_MAP.get(agent_id)
         if isinstance(outcome, BaseException):
             logger.error("[%s] FAILED: %s", agent_id, outcome)
@@ -802,7 +747,7 @@ async def _execute_pipeline(
             diagnostico_id=run_id,
             dimension_key=dim_key,
             dimensional_output=output,
-            llm_client=llm_client,
+            runner=runner,
         )
 
         if not passed:
@@ -815,7 +760,7 @@ async def _execute_pipeline(
                     agent_id=agent_id,
                     run_id=run_id,
                     blackboard=blackboard,
-                    llm_client=llm_client,
+                    runner=runner,
                 )
             except Exception as retry_exc:
                 raise OrchestratorError(
@@ -823,21 +768,13 @@ async def _execute_pipeline(
                     failed_agents=[agent_id],
                 ) from retry_exc
 
-            # Second quality-gate pass
-            passed, _ = await run_quality_gate(
+            # Second quality-gate pass — raises QualityGateEscalationError if failed again
+            await run_quality_gate(
                 diagnostico_id=run_id,
                 dimension_key=dim_key,
                 dimensional_output=results[agent_id],
-                llm_client=llm_client,
+                runner=runner,
             )
-            if not passed:
-                # QualityGateEscalationError raised on next call (retry_count >= 2)
-                await run_quality_gate(
-                    diagnostico_id=run_id,
-                    dimension_key=dim_key,
-                    dimensional_output=results[agent_id],
-                    llm_client=llm_client,
-                )
 
     logger.info("Quality gate complete — all dimensional outputs approved.")
 
@@ -851,7 +788,7 @@ async def _execute_pipeline(
             agent_id="A7",
             run_id=run_id,
             blackboard=blackboard,
-            llm_client=llm_client,
+            runner=runner,
         )
         idd = results["A7"].get("idd", "N/A")
         logger.info("[A7] IDD: %s/100", idd)
@@ -873,29 +810,44 @@ async def _execute_pipeline(
 
     logger.info("Phase 2 complete — synthesis succeeded.")
 
-    # ── Phase 3: Output generation ─────────────────────────────────────────────
-    logger.info("═══ PHASE 3: One-Pager Output | run=%s ═══", run_id)
+    # ── Phase 3: Output generation (A8 + A11 in parallel) ────────────────────
+    # A8 produces the executive One-Pager; A11 produces the extended full report.
+    # Both derive independently from A7's synthesis, so they run concurrently.
+    logger.info("═══ PHASE 3: Output Generation (A8 + A11 parallel) | run=%s ═══", run_id)
     blackboard.set_estado("output")
     event_bus.emit(run_id, "phase_start", {"phase": "output"})
 
-    try:
-        results["A8"] = await run_agent(
-            agent_id="A8",
-            run_id=run_id,
-            blackboard=blackboard,
-            llm_client=llm_client,
-        )
-    except (LLMError, AgentOutputError, ValidationError, OrchestratorError) as exc:
-        blackboard.registrar_error("A8", str(exc))
+    phase3_outcomes = await asyncio.gather(
+        run_agent(agent_id="A8", run_id=run_id, blackboard=blackboard, runner=runner),
+        run_agent(agent_id="A11", run_id=run_id, blackboard=blackboard, runner=runner),
+        return_exceptions=True,
+    )
+
+    phase3_agents = ["A8", "A11"]
+    phase3_failures = []
+    for aid, outcome in zip(phase3_agents, phase3_outcomes):
+        if isinstance(outcome, BaseException):
+            logger.error("[%s] Phase 3 FAILED: %s", aid, outcome)
+            blackboard.registrar_error(aid, str(outcome))
+            phase3_failures.append(aid)
+        else:
+            results[aid] = outcome
+
+    # A8 failure is fatal — One-Pager is the primary deliverable.
+    if "A8" in phase3_failures:
         _orch_exc = OrchestratorError(
-            f"Phase 3 (One-Pager) failed: {exc}.",
-            failed_agents=["A8"],
+            f"Phase 3 (One-Pager) failed. A11 status: "
+            f"{'failed' if 'A11' in phase3_failures else 'ok'}.",
+            failed_agents=phase3_failures,
         )
         pipeline_span.record_exception(_orch_exc)
         pipeline_span.set_status(Status(StatusCode.ERROR, "Phase 3 failed"))
-        raise _orch_exc from exc
+        raise _orch_exc
 
-    logger.info("Phase 3 complete — One-Pager generated.")
+    if "A11" in phase3_failures:
+        logger.warning("[A11] Full report failed — pipeline continues with One-Pager only.")
+
+    logger.info("Phase 3 complete — One-Pager (A8) generated.")
     state_manager.update_onepager(run_id, {"status": "generated", "output_path": f"runs/{run_id}.json"})
     state_manager.update_pipeline_status(run_id, "evaluation")
     state_manager.append_history(run_id, "A8", "complete", "One-Pager generated")
@@ -905,7 +857,7 @@ async def _execute_pipeline(
     op_passed, op_feedback = await run_onepager_evaluation(
         diagnostico_id=run_id,
         onepager_output=results["A8"],
-        llm_client=llm_client,
+        runner=runner,
     )
 
     if not op_passed:
@@ -918,7 +870,7 @@ async def _execute_pipeline(
                 agent_id="A8",
                 run_id=run_id,
                 blackboard=blackboard,
-                llm_client=llm_client,
+                runner=runner,
             )
         except Exception as a8_retry_exc:
             raise OrchestratorError(
@@ -926,19 +878,12 @@ async def _execute_pipeline(
                 failed_agents=["A8"],
             ) from a8_retry_exc
 
-        # Second A10 evaluation — if it fails again, OnePagerEscalationError is raised
-        op_passed, _ = await run_onepager_evaluation(
+        # Second A10 evaluation — raises OnePagerEscalationError if failed again
+        await run_onepager_evaluation(
             diagnostico_id=run_id,
             onepager_output=results["A8"],
-            llm_client=llm_client,
+            runner=runner,
         )
-        if not op_passed:
-            # Third call raises OnePagerEscalationError (retry_count >= 2)
-            await run_onepager_evaluation(
-                diagnostico_id=run_id,
-                onepager_output=results["A8"],
-                llm_client=llm_client,
-            )
 
     logger.info("One-Pager approved by A10 | run=%s", run_id)
     logger.info("════ PIPELINE COMPLETE | run=%s ════", run_id)

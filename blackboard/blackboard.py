@@ -34,6 +34,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import config_loader
+
 
 ESTADOS_VALIDOS = [
     "iniciado",
@@ -45,7 +49,7 @@ ESTADOS_VALIDOS = [
     "error"
 ]
 
-AGENTES_VALIDOS = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"]
+AGENTES_VALIDOS = ["CB", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11"]
 
 DIMENSIONES_VALIDAS = [
     "A1_estrategia",
@@ -56,15 +60,7 @@ DIMENSIONES_VALIDAS = [
     "A6_tecnologia"
 ]
 
-ANTIPATRONES_VALIDOS = [
-    "excel_sagrado",
-    "director_orquesta",
-    "isla_automatizacion",
-    "resistencia_silenciosa",
-    "erp_fantasma",
-    "datos_no_hablan",
-    "transformacion_sin_brujula"
-]
+ANTIPATRONES_VALIDOS: list[str] = list(config_loader.load_antipattern_ids())
 
 
 class BlackboardError(Exception):
@@ -330,6 +326,17 @@ class Blackboard:
         self._guardar()
         print(f"✓ One-Pager generado. Run completado: {self._data['run_id']}")
 
+    def write_reporte_completo(self, reporte: Dict[str, Any]) -> None:
+        """Escribe el reporte completo generado por A11 (versión extendida del One-Pager)."""
+        if self._data.get("one_pager") is None:
+            raise BlackboardError("No se puede generar Reporte Completo sin One-Pager completado.")
+
+        self._data["reporte_completo"] = reporte
+        self._data["timestamps"]["A11_completado"] = self._now()
+        self.marcar_agente_completado("A11")
+        self._guardar()
+        print(f"✓ Reporte Completo generado. Run: {self._data['run_id']}")
+
     def marcar_agente_completado(self, agente: str) -> None:
         if agente not in AGENTES_VALIDOS:
             raise BlackboardError(f"Agente inválido: {agente}")
@@ -383,6 +390,12 @@ class Blackboard:
         # A8 necesita la síntesis
         elif agente_id == "A8":
             base["sintesis"] = self._data["sintesis"]
+            base["cliente"] = self._data["cliente"]
+
+        # A11 derives full report from synthesis + dimensional data (runs parallel to A8)
+        elif agente_id == "A11":
+            base["sintesis"] = self._data.get("sintesis")
+            base["resultados_dimensionales"] = self._data["resultados_dimensionales"]
             base["cliente"] = self._data["cliente"]
 
         return base

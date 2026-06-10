@@ -12,9 +12,9 @@ Lee `SKILL.md` como la referencia principal de la arquitectura, metodología, es
 
 | Directorio / Archivo | Propósito |
 |----------------------|-----------|
-| `agents/` | Prompts de cada sub-agente (A1–A10). **Lee el archivo completo antes de modificar cualquier agente.** |
+| `agents/` | Prompts de cada sub-agente (A1–A11). **Lee el archivo completo antes de modificar cualquier agente.** |
 | `blackboard/` | Módulo Python de estado compartido + persistencia entre sesiones |
-| `blackboard/diagnostico-state.json` | Fuente única de verdad del diagnóstico activo (estado de pipeline, quality-gate, contratos) |
+| `blackboard/state/{run_id}-state.json` | Fuente única de verdad del diagnóstico activo (estado de pipeline, quality-gate, contratos). Un archivo por run. |
 | `blackboard/contracts/` | Contratos pre-diagnóstico generados por `contract_builder.py` |
 | `blackboard/outputs/` | Outputs JSON dimensionales de A1–A6 |
 | `blackboard/evaluations/` | Evaluaciones de A9 quality-gate por dimensión |
@@ -29,7 +29,7 @@ Lee `SKILL.md` como la referencia principal de la arquitectura, metodología, es
 
 ---
 
-## Pipeline v2 (harness design)
+## Pipeline v3 (harness design)
 
 ```
 [Evidencia del cliente]
@@ -38,21 +38,21 @@ Lee `SKILL.md` como la referencia principal de la arquitectura, metodología, es
 [contract_builder] → contrato específico del cliente
         │
         ▼
-[A1–A6] análisis dimensional (con contrato como input adicional)
+[A1–A6] análisis dimensional PARALELO (con contrato como input adicional)
         │
         ▼
 [A9 quality-gate] evalúa CADA output dimensional
-    PASS → continúa │ FAIL → feedback → retry (máx 2x) → escala a humano
+    PASS → continúa │ FAIL → feedback → retry → FAIL → escalada a humano (sin tercera llamada)
         │
         ▼
 [A7 síntesis] con outputs evaluados y aprobados
         │
         ▼
-[A8 output] genera One-Pager
+[A8 One-Pager] ──── PARALELO ──── [A11 Reporte Completo]
         │
         ▼
 [A10 onepager-eval] valida checklist de 8 criterios
-    PASS → entregable │ FAIL → feedback → retry (máx 2x)
+    PASS → entregable │ FAIL → feedback → retry → FAIL → escalada a humano
         │
         ▼
 [ENTREGABLE APROBADO]
@@ -65,10 +65,11 @@ Lee `SKILL.md` como la referencia principal de la arquitectura, metodología, es
 Al iniciar cada sesión, el primer comando debe ser:
 
 ```
-Lee blackboard/diagnostico-state.json y dime en qué fase del pipeline
+Lee blackboard/state/{run_id}-state.json y dime en qué fase del pipeline
 estamos y cuál es la próxima tarea pendiente.
 ```
 
+Donde `{run_id}` es el ID del diagnóstico activo (ej: `COMPOLAT_20260406`).
 Si no existe el archivo de estado, significa que es un diagnóstico nuevo.
 
 ---

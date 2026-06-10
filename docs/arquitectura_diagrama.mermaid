@@ -1,0 +1,158 @@
+flowchart TB
+    %% ─────────────────────────────────────────────────────────────────────────
+    %% DiagnostiCore v3 — Diagrama de Arquitectura (actualizado 2026-06-10)
+    %% ─────────────────────────────────────────────────────────────────────────
+
+    subgraph ENTRY["🚪 Puntos de entrada"]
+        CLI["main.py\n(CLI)"]
+        API["api/app.py\n(FastAPI + SSE)"]
+        TEAMS["teams_bot/app.py\n(Azure Teams Bot)"]
+        AUTH["auth/jwt_auth.py\n(tokens por run)"]
+    end
+
+    subgraph ORCH["🧠 Orchestrator — pipeline agéntico"]
+        RUNPIPE["run_full_pipeline()\nagent_runner.py"]
+        RUNAGENT["run_agent()\nlanza un sub-agente"]
+        OLLAMA["OllamaSessionRunner\nollama_runner.py"]
+        SESSION["SessionRunner\nsession_runner.py\n(Managed Agents — alternativa cloud)"]
+        CONTRACT["contract_builder.py\ngenera contrato pre-análisis (CB)"]
+        QG["quality_gate.py\nrun_quality_gate() · A9"]
+        OPE["onepager_evaluator.py\nrun_onepager_evaluation() · A10"]
+        STATE["state_manager.py\nload / save / update\nblackboard/state/{run_id}-state.json"]
+        EXC["exceptions.py\nOrchestratorError · LLMError\nValidationError · AgentOutput"]
+        CFGLOAD["config/config_loader.py\nlru_cache — antipatterns\nmaturity · criteria · IDD"]
+    end
+
+    subgraph AGENTS["🤖 Prompts de agentes (agents/)"]
+        ACB["CB Contract Builder"]
+        A1["A1 Estrategia"]
+        A2["A2 Liderazgo"]
+        A3["A3 Cultura"]
+        A4["A4 Procesos"]
+        A5["A5 Datos"]
+        A6["A6 Tecnología"]
+        A7["A7 Síntesis"]
+        A8["A8 One-Pager"]
+        A9["A9 Quality Gate"]
+        A10["A10 One-Pager Eval"]
+        A11["A11 Reporte Completo"]
+    end
+
+    subgraph BB["📋 Blackboard — estado compartido"]
+        BBPY["blackboard.py\nBlackboard class\n(lock + persist JSON)"]
+        RUNFILE[("runs/{RUN_ID}.json\nfuente de verdad del run")]
+        STATEFILES[("blackboard/state/\n{run_id}-state.json\npor run")]
+        OUTS[("blackboard/outputs/\nA1..A6 JSON")]
+        EVALS[("blackboard/evaluations/\nA9 por dimensión")]
+        ONEP[("blackboard/onepager/\neval A10")]
+        CONTR[("blackboard/contracts/\ncontrato del cliente")]
+    end
+
+    subgraph CFG["⚙️ Configuración"]
+        MAT["config/maturity_scales.json"]
+        ANTI["config/antipatterns.json\n(ids_validos canónico)"]
+        ACC["config/acceptance_criteria.json"]
+        PESOS["config/pesos_idd.json"]
+        TOOLS["tools/\ncalcular_idd · cuantificar_costo\ndetectar_antipatron"]
+    end
+
+    subgraph MCP["🔌 mcp_adapter"]
+        TOOLSRV["tools_server.py\n(MCP tools)"]
+        BBSRV["blackboard_server.py\n(MCP Resources — blackboard://)"]
+        SBX["sandbox.py\n(subprocess aislado)"]
+        PII["pii_filter.py\n(PII anonymizer)"]
+    end
+
+    subgraph OBS["📡 Observabilidad"]
+        TRACE["telemetry/tracing.py\nOpenTelemetry"]
+        SSE["api/sse.py\nevent_bus + streaming"]
+    end
+
+    %% ── Entradas al pipeline ──────────────────────────────────────────────────
+    CLI -->|crear/resume run| RUNPIPE
+    API -->|POST /runs/pipeline| RUNPIPE
+    API -->|GET /runs/stream| SSE
+    TEAMS -->|HTTP| API
+    AUTH -.verifica token.-> CLI
+    AUTH -.verifica token.-> API
+
+    %% ── Orquestación ──────────────────────────────────────────────────────────
+    RUNPIPE --> STATE
+    RUNPIPE -->|1 genera contrato| CONTRACT
+    CONTRACT --> OLLAMA
+    CONTRACT --> CONTR
+
+    RUNPIPE -->|2 FASE 1 paralela\nasyncio.gather A1-A6| RUNAGENT
+    RUNAGENT --> OLLAMA
+    RUNAGENT --> BBPY
+    OLLAMA -->|lee prompts .md| AGENTS
+    SESSION -.alternativa cloud.-> OLLAMA
+
+    RUNAGENT -- CB --> ACB
+    RUNAGENT -- A1 --> A1
+    RUNAGENT -- A2 --> A2
+    RUNAGENT -- A3 --> A3
+    RUNAGENT -- A4 --> A4
+    RUNAGENT -- A5 --> A5
+    RUNAGENT -- A6 --> A6
+
+    %% ── Quality Gate ──────────────────────────────────────────────────────────
+    RUNPIPE -->|3 quality gate secuencial| QG
+    QG --> A9
+    QG --> OLLAMA
+    QG --> EVALS
+    QG -- falla 1x: retry --> RUNAGENT
+    QG -. falla 2x: escala .-> EXC
+
+    %% ── Síntesis ──────────────────────────────────────────────────────────────
+    RUNPIPE -->|4 FASE 2 síntesis| RUNAGENT
+    RUNAGENT -- A7 --> A7
+
+    %% ── Output (paralelo A8 + A11) ────────────────────────────────────────────
+    RUNPIPE -->|5 FASE 3 paralela\nasyncio.gather A8+A11| RUNAGENT
+    RUNAGENT -- A8 --> A8
+    RUNAGENT -- A11 --> A11
+
+    %% ── One-Pager Eval ────────────────────────────────────────────────────────
+    RUNPIPE -->|6 valida checklist| OPE
+    OPE --> A10
+    OPE --> OLLAMA
+    OPE --> ONEP
+    OPE -- falla 1x: retry A8 --> RUNAGENT
+    OPE -. falla 2x: escala .-> EXC
+
+    %% ── Estado y persistencia ─────────────────────────────────────────────────
+    BBPY <--> RUNFILE
+    STATE <--> STATEFILES
+    RUNAGENT --> OUTS
+
+    %% ── Config hacia agentes ──────────────────────────────────────────────────
+    CFGLOAD --> QG
+    CFGLOAD --> OPE
+    CFGLOAD --> CONTRACT
+    CFGLOAD --> RUNAGENT
+    CFG --> CFGLOAD
+    TOOLS -.usadas por sandbox.-> SBX
+    SBX <-- TOOLSRV
+    PII -.filtra evidencia.-> RUNAGENT
+
+    %% ── Observabilidad ────────────────────────────────────────────────────────
+    RUNPIPE --> TRACE
+    RUNPIPE --> SSE
+
+    %% ── Estilos ───────────────────────────────────────────────────────────────
+    classDef entry  fill:#1e3a8a,stroke:#93c5fd,color:#fff
+    classDef orch   fill:#7c2d12,stroke:#fdba74,color:#fff
+    classDef agent  fill:#064e3b,stroke:#6ee7b7,color:#fff
+    classDef bb     fill:#4c1d95,stroke:#c4b5fd,color:#fff
+    classDef cfg    fill:#374151,stroke:#9ca3af,color:#fff
+    classDef mcp    fill:#831843,stroke:#f9a8d4,color:#fff
+    classDef obs    fill:#0f766e,stroke:#5eead4,color:#fff
+
+    class CLI,API,TEAMS,AUTH entry
+    class RUNPIPE,RUNAGENT,OLLAMA,SESSION,CONTRACT,QG,OPE,STATE,EXC,CFGLOAD orch
+    class ACB,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11 agent
+    class BBPY,RUNFILE,STATEFILES,OUTS,EVALS,ONEP,CONTR bb
+    class MAT,ANTI,ACC,PESOS,TOOLS cfg
+    class TOOLSRV,BBSRV,SBX,PII mcp
+    class TRACE,SSE obs
