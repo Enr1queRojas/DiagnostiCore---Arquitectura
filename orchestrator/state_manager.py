@@ -192,6 +192,7 @@ def load_state(diagnostico_id: str) -> dict:
 
     Raises:
         FileNotFoundError: If no state file exists yet for this run.
+        ValueError: If the file's internal diagnostico_id doesn't match (file corruption).
     """
     sf = _state_file(diagnostico_id)
     if not sf.exists():
@@ -199,7 +200,13 @@ def load_state(diagnostico_id: str) -> dict:
             f"No state file found for run '{diagnostico_id}' at {sf}. "
             "Call init_state() to create a new diagnostic."
         )
-    return _read_raw(diagnostico_id)
+    state = _read_raw(diagnostico_id)
+    if state.get("diagnostico_id") != diagnostico_id:
+        raise ValueError(
+            f"State file diagnostico_id mismatch: expected '{diagnostico_id}', "
+            f"got '{state.get('diagnostico_id')}'. File may be corrupted."
+        )
+    return state
 
 
 def save_state(state: dict) -> None:

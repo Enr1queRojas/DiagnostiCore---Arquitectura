@@ -152,7 +152,7 @@ El sistema corre sobre **Claude Managed Agents** (beta `managed-agents-2026-04-0
 | `api/app.py` | FastAPI REST + SSE. Endpoints: `POST /runs`, `POST /runs/{id}/pipeline`, `GET /runs/{id}/stream`, `GET /runs/{id}/report` |
 | `teams_bot/` | Bot de Microsoft Teams (aiohttp + Bot Framework SDK). Integra con la API REST |
 
-**Nota:** `orchestrator/llm_client.py` existe por compatibilidad con `api/app.py` pero está marcado LEGACY. Toda lógica nueva usa `SessionRunner`.
+**Nota:** El runner por defecto es `OllamaSessionRunner` (`orchestrator/ollama_runner.py`), que apunta a `https://llm.innoversesolutions.com.mx` con modelo `gemma4:12b`. `SessionRunner` (Managed Agents cloud) está disponible como alternativa.
 
 ---
 

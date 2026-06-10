@@ -94,14 +94,14 @@ DiagnostiCore — Arquitectura/
 │   ├── quality_gate.py              Invoca A9, maneja retry logic
 │   ├── onepager_evaluator.py        Invoca A10, maneja retry logic
 │   ├── state_manager.py             Persiste estado entre retries
-│   ├── exceptions.py                Tipos de error del pipeline
-│   └── llm_client.py                [LEGACY — AsyncLLMClient] Mantenido para api/app.py
+│   ├── ollama_runner.py             OllamaSessionRunner — driver Ollama local (default)
+│   └── exceptions.py                Tipos de error del pipeline
 │
 ├── blackboard/                      ← Estado compartido entre agentes
 │   ├── blackboard.py                Manager de lectura/escritura del estado
 │   ├── schema.json                  Esquema JSON de validación
 │   ├── template.json                Template vacío para nuevo run
-│   ├── diagnostico-state.json       Estado activo del pipeline (retry counts, fases)
+│   ├── state/                       Estado activo por run ({run_id}-state.json)
 │   ├── contracts/                   Contratos generados por CB (uno por run)
 │   ├── outputs/                     Outputs dimensionales A1–A6
 │   ├── evaluations/                 Evaluaciones A9 por dimensión
@@ -113,7 +113,7 @@ DiagnostiCore — Arquitectura/
 │   ├── antipatterns.json            Catálogo v2.0 de 7 anti-patrones (canónico)
 │   ├── acceptance_criteria.json     Checklist de 8 criterios para el One-Pager
 │   ├── pesos_idd.json               Pesos del IDD por dimensión + rangos
-│   └── brand_guidelines.json        Identidad visual y reglas de lenguaje InnoVerse
+│   └── config_loader.py             Carga con lru_cache — fuente única de verdad
 │
 ├── api/                             ← FastAPI REST + SSE (interfaz web)
 │   ├── app.py                       Endpoints: POST /runs, GET /stream, GET /report

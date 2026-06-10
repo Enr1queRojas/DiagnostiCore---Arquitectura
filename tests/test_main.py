@@ -5,8 +5,8 @@ from unittest.mock import patch, MagicMock, AsyncMock
 import importlib
 
 
-def test_main_imports_session_runner_not_llm_client():
-    """main.py must import SessionRunner and setup_managed_agents, not AsyncLLMClient."""
+def test_main_imports_ollama_runner_not_llm_client():
+    """main.py must import OllamaSessionRunner (as SessionRunner) and setup_managed_agents, not AsyncLLMClient."""
     import ast
     from pathlib import Path
     src = (Path(__file__).parent.parent / "main.py").read_text(encoding="utf-8")
@@ -16,7 +16,7 @@ def test_main_imports_session_runner_not_llm_client():
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             imports.append(ast.dump(node))
     imports_str = " ".join(imports)
-    assert "SessionRunner" in imports_str, "main.py must import SessionRunner"
+    assert "OllamaSessionRunner" in imports_str, "main.py must import OllamaSessionRunner"
     assert "setup_managed_agents" in imports_str, "main.py must import setup_managed_agents"
     assert "AsyncLLMClient" not in imports_str, "main.py must NOT import AsyncLLMClient"
 
@@ -27,6 +27,7 @@ def test_setup_flag_exists_in_parser():
     stubs = [
         "auth.jwt_auth", "blackboard.blackboard",
         "orchestrator.session_runner", "orchestrator.managed_agent_setup",
+        "orchestrator.ollama_runner",
     ]
     with patch.dict(sys.modules, {s: MagicMock() for s in stubs}):
         # Stub orchestrator itself
